@@ -27,6 +27,7 @@ setup(
     entry_points={
         'console_scripts': [
             'procmem = procmem.cmd_procmem:main_entrypoint',
+            'memwrite = procmem.cmd_memwrite:main_entrypoint',
         ],
         'gui_scripts': []
     },
