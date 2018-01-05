@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 # procmem - A process memory inspection tool
 # Copyright (C) 2018 Ingo Ruhnke <grumbel@gmail.com>
 #
@@ -21,6 +19,8 @@ import re
 import os
 import sys
 import argparse
+import shutil
+import signal
 from collections import namedtuple
 
 
@@ -49,15 +49,36 @@ def parse_args(argv):
                         help="Save memory to FILE")
     parser.add_argument("-w", "--writable", action='store_true', default=False,
                         help="Only dump writable pages")
+    parser.add_argument("-s", "--split", action='store_true', default=False,
+                        help="Write each memory segment to it's own file")
+    parser.add_argument("-S", "--suspend", action='store_true', default=False,
+                        help="Suspend the given process while dumping memory")
+    parser.add_argument("-p", "--pathname", type=str, default=None,
+                        help="Limit output to segments matching pathname")
     return parser.parse_args(argv)
+
+
+def make_outfile(template, addr):
+    return "{}-{:016x}".format(template, addr)
 
 
 def main(argv):
     args = parse_args(argv[1:])
     pid = args.PID[0]
-    procdir = os.path.join("/proc", pid)
+
+    if pid == "self":
+        pid = os.getpid()
+    else:
+        pid = int(pid)
+
+    if args.suspend:
+        os.kill(pid, signal.SIGSTOP)
+
+    procdir = os.path.join("/proc", str(pid))
 
     infos = []
+    shutil.copyfile(os.path.join(procdir, "maps"),
+                    args.outfile + ".maps")
     with open(os.path.join(procdir, "maps"), 'r') as fin:
         for line in fin:
             m = maps_re.match(line)
@@ -71,22 +92,40 @@ def main(argv):
     if args.writable:
         infos = [info for info in infos if info.perms[1] == 'w']
 
-    # infos = [info for info in infos if info.pathname == '']
+    if args.pathname is not None:
+        infos = [info for info in infos if info.pathname == args.pathname]
 
     total_length = 0
-    with open(args.outfile, 'wb') as fout:
-        with open(os.path.join(procdir, "mem"), 'rb', buffering=0) as fin:
+    with open(os.path.join(procdir, "mem"), 'rb', buffering=0) as fin:
+        if args.split:
             for info in infos:
                 print(info)
                 try:
                     fin.seek(info.addr_range.start)
                     chunk = fin.read(len(info.addr_range))
                     total_length = len(chunk)
-                    fout.write(chunk)
+                    with open(make_outfile(args.outfile, info.addr_range.start), 'wb') as fout:
+                        fout.write(chunk)
                 except OverflowError as err:
                     print("overflow error")
                 except OSError as err:
                     print("OS error")
+        else:
+            with open(args.outfile, 'wb') as fout:
+                for info in infos:
+                    print(info)
+                    try:
+                        fin.seek(info.addr_range.start)
+                        chunk = fin.read(len(info.addr_range))
+                        total_length = len(chunk)
+                        fout.write(chunk)
+                    except OverflowError as err:
+                        print("overflow error")
+                    except OSError as err:
+                        print("OS error")
+
+    if args.suspend:
+        os.kill(pid, signal.SIGCONT)
 
     print("dumped {} bytes".format(total_length))
 
