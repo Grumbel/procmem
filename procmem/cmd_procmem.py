@@ -22,9 +22,9 @@ import argparse
 import shutil
 import signal
 import string
-import psutil
 from collections import namedtuple
 from procmem.units import bytes2human_binary
+import psutil
 
 
 # address, perms, offset, dev, inode, pathname
@@ -147,7 +147,7 @@ def chunk_iter(lst, size):
     return (lst[p:p + size] for p in range(0, len(lst), size))
 
 
-printable_set = set([ord(c) for c in (string.digits + string.ascii_letters + string.punctuation)])
+printable_set = set([ord(c) for c in string.digits + string.ascii_letters + string.punctuation])
 
 
 def write_hex(fp, buf, offset):
@@ -211,9 +211,9 @@ def main_read(pid, args):
                     total_length = len(chunk)
                     with open(make_outfile(args.outfile, info.addr_range.start), 'wb') as fout:
                         write_func(fout, chunk, info.addr_range.start)
-                except OverflowError as err:
+                except OverflowError:
                     print("overflow error")
-                except OSError as err:
+                except OSError:
                     print("OS error")
         else:
             with open(args.outfile, 'wb') as fout:
@@ -229,9 +229,9 @@ def main_read(pid, args):
                             chunk = fin.read(len(info.addr_range))
                             total_length = len(chunk)
                             write_func(fout, chunk, info.addr_range.start)
-                        except OverflowError as err:
+                        except OverflowError:
                             print("overflow error")
-                        except OSError as err:
+                        except OSError:
                             print("OS error")
 
     print("dumped {} bytes".format(total_length))
