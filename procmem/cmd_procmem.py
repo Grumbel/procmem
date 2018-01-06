@@ -21,6 +21,8 @@ import sys
 import argparse
 import shutil
 import signal
+import string
+import psutil
 from collections import namedtuple
 
 
@@ -46,8 +48,14 @@ def parse_args(argv):
     parser = argparse.ArgumentParser(description="A process memory inspection tool")
     subparsers = parser.add_subparsers()
 
-    parser.add_argument("-p", "--pid", metavar="PID", type=str, required=True,
+    pid_p = parser.add_mutually_exclusive_group(required=True)
+    pid_p.add_argument("-p", "--pid", metavar="PID", type=str,
                         help="The id of the process to read or write to")
+    pid_p.add_argument("-P", "--process", metavar="NAME", type=str,
+                        help="The name of the process to read or write to")
+
+    parser.add_argument("-S", "--suspend", action='store_true', default=False,
+                        help="Suspend the given process while interacting with the memory")
 
     read_p = subparsers.add_parser("read", help="Read memory")
     read_p.set_defaults(command=main_read)
@@ -88,12 +96,10 @@ def make_outfile(template, addr):
     return "{}-{:016x}".format(template, addr)
 
 
-def main_info(args):
+def main_info(pid, args):
     pass
 
 
-def main_read(args):
-    pid = args.pid
 
     if pid == "self":
         pid = os.getpid()
@@ -103,6 +109,7 @@ def main_read(args):
     if args.suspend:
         os.kill(pid, signal.SIGSTOP)
 
+def main_read(pid, args):
     procdir = os.path.join("/proc", str(pid))
 
     infos = []
@@ -161,8 +168,7 @@ def main_read(args):
     print("dumped {} bytes".format(total_length))
 
 
-def main_write(args):
-    pid = args.pid
+def main_write(pid, args):
     address = int(args.address)
 
     if args.bytes is not None:
@@ -181,13 +187,35 @@ def main_write(args):
         fout.write(data)
 
 
-def main_search(args):
+def main_search(pid, args):
     pass
+
+
+def pid_by_name(name):
+    results = [p for p in psutil.process_iter() if p.name() == name]
+    if results == []:
+        raise Exception("Couldn't find process with name={}".format(name))
+    elif len(results) != 1:
+        print(results)
+        raise Exception("process is not unique: name={}".format(name))
+    else:
+        return results[0].pid
+
+
+def pid_from_args(args):
+    if args.pid is not None:
+        if args.pid == "self":
+            return os.getpid()
+        else:
+            return int(args.pid)
+    else:
+        return pid_by_name(args.process)
 
 
 def main(argv):
     args = parse_args(argv[1:])
-    args.command(args)
+    pid = pid_from_args(args)
+
 
 
 def main_entrypoint():
