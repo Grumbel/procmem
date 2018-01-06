@@ -44,6 +44,20 @@ def unpack_maps_re(m):
               pathname=pathname)
 
 
+def AddressRangeOpt(text):
+    g = re.match(r"^([0-9a-fA-F]+)$", text)
+    if g is not None:
+        s = int(g.group(1), 16)
+        return range(s, s + 1)
+
+    g = re.match(r"^([0-9a-fA-F]+):([0-9a-fA-F]*)$", text)
+    if g is None:
+        raise Exception("range argument wrong")
+    else:
+        return range(int(g.group(1), 16),
+                     int(g.group(2), 16))
+
+
 def parse_args(argv):
     parser = argparse.ArgumentParser(description="A process memory inspection tool")
     subparsers = parser.add_subparsers()
@@ -74,6 +88,10 @@ def parse_args(argv):
     info_p.set_defaults(command=main_info)
     info_p.add_argument("-v", "--verbose", action='store_true', default=False,
                         help="Include additional information")
+    read_p.add_argument("-r", "--range", type=AddressRangeOpt, default=None,
+                        help="Limit output to range")
+    read_p.add_argument("-R", "--relative-range", type=AddressRangeOpt, default=None,
+                        help="Limit output to range, address relative to the start of the segment")
 
     write_p = subparsers.add_parser("write", help="Write to memory")
     write_p.set_defaults(command=main_write)
@@ -102,6 +120,21 @@ def parse_args(argv):
 
 def make_outfile(template, addr):
     return "{}-{:016x}".format(template, addr)
+
+
+def read_memory_maps(pid):
+    infos = []
+    maps_path = os.path.join("/proc", str(pid), "maps")
+    with open(maps_path, 'r') as fin:
+        for line in fin:
+            m = maps_re.match(line)
+            if not m:
+                print("unknown line format:")
+                print(line)
+            else:
+                info = unpack_maps_re(m)
+                infos.append(info)
+    return infos
 
 
 def main_info(pid, args):
@@ -136,17 +169,7 @@ def write_hex(fp, buf, offset):
 def main_read(pid, args):
     procdir = os.path.join("/proc", str(pid))
 
-    infos = []
-
-    with open(os.path.join(procdir, "maps"), 'r') as fin:
-        for line in fin:
-            m = maps_re.match(line)
-            if not m:
-                print("unknown line format:")
-                print(line)
-            else:
-                info = unpack_maps_re(m)
-                infos.append(info)
+    infos = read_memory_maps(pid)
 
     if args.writable:
         infos = [info for info in infos if info.perms[1] == 'w']
@@ -179,17 +202,22 @@ def main_read(pid, args):
                     print("OS error")
         else:
             with open(args.outfile, 'wb') as fout:
-                for info in infos:
-                    print(info)
-                    try:
-                        fin.seek(info.addr_range.start)
-                        chunk = fin.read(len(info.addr_range))
-                        total_length = len(chunk)
-                        write_func(fout, chunk, info.addr_range.start)
-                    except OverflowError as err:
-                        print("overflow error")
-                    except OSError as err:
-                        print("OS error")
+                if args.range is not None:
+                    fin.seek(args.range.start)
+                    chunk = fin.read(len(args.range))
+                    write_func(fout, chunk, info.addr_range.start)
+                else:
+                    for info in infos:
+                        print(info)
+                        try:
+                            fin.seek(info.addr_range.start)
+                            chunk = fin.read(len(info.addr_range))
+                            total_length = len(chunk)
+                            write_func(fout, chunk, info.addr_range.start)
+                        except OverflowError as err:
+                            print("overflow error")
+                        except OSError as err:
+                            print("OS error")
 
     print("dumped {} bytes".format(total_length))
 
