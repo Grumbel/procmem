@@ -67,6 +67,8 @@ def parse_args(argv):
                         help="Write each memory segment to it's own file")
     read_p.add_argument("-S", "--suspend", action='store_true', default=False,
                         help="Suspend the given process while dumping memory")
+    read_p.add_argument("-H", "--human-readable", action='store_true', default=False,
+                        help="Print memory in human readable hex format")
     read_p.add_argument("-P", "--pathname", type=str, default=None,
                         help="Limit output to segments matching pathname")
 
@@ -102,14 +104,30 @@ def main_info(pid, args):
     pass
 
 
+def chunk_iter(lst, size):
+    return (lst[p:p + size] for p in range(0, len(lst), size))
 
-    if pid == "self":
-        pid = os.getpid()
-    else:
-        pid = int(pid)
 
-    if args.suspend:
-        os.kill(pid, signal.SIGSTOP)
+printable_set = set([ord(c) for c in (string.digits + string.ascii_letters + string.punctuation)])
+
+def write_hex(fp, buf, offset):
+    for i, chunk in enumerate(chunk_iter(buf, 16)):
+        fp.write("{:016x}  ".format(i*16 + offset).encode())
+
+        fp.write(" ".join(["{:02x}".format(c) for c in chunk[0:8]]).encode())
+        fp.write(b"  ")
+        fp.write(" ".join(["{:02x}".format(c) for c in chunk[8:16]]).encode())
+
+        fp.write(b"  |")
+        for c in chunk:
+            if c in printable_set:
+                fp.write(bytes([c]))
+            else:
+                fp.write(b".")
+        fp.write(b"|")
+
+        fp.write(b"\n")
+
 
 def main_read(pid, args):
     procdir = os.path.join("/proc", str(pid))
@@ -132,6 +150,11 @@ def main_read(pid, args):
     if args.pathname is not None:
         infos = [info for info in infos if info.pathname == args.pathname]
 
+    if args.human_readable:
+        write_func = write_hex
+    else:
+        write_func = lambda fp, buf, offset: fp.write(buf)
+
     total_length = 0
     with open(os.path.join(procdir, "mem"), 'rb', buffering=0) as fin:
         if args.split:
@@ -145,7 +168,7 @@ def main_read(pid, args):
                     chunk = fin.read(len(info.addr_range))
                     total_length = len(chunk)
                     with open(make_outfile(args.outfile, info.addr_range.start), 'wb') as fout:
-                        fout.write(chunk)
+                        write_func(fout, chunk, info.addr_range.start)
                 except OverflowError as err:
                     print("overflow error")
                 except OSError as err:
@@ -158,14 +181,11 @@ def main_read(pid, args):
                         fin.seek(info.addr_range.start)
                         chunk = fin.read(len(info.addr_range))
                         total_length = len(chunk)
-                        fout.write(chunk)
+                        write_func(fout, chunk, info.addr_range.start)
                     except OverflowError as err:
                         print("overflow error")
                     except OSError as err:
                         print("OS error")
-
-    if args.suspend:
-        os.kill(pid, signal.SIGCONT)
 
     print("dumped {} bytes".format(total_length))
 
