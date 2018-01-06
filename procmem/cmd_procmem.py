@@ -38,11 +38,11 @@ PagesInfo = namedtuple('PagesInfo', ['addr_range', 'perms', 'offset', 'dev', 'in
 def unpack_maps_re(m):
     addr_beg, addr_end, r, w, x, p, offset, dev, inode, pathname = m.groups()
     return PagesInfo(addr_range=range(int(addr_beg, 16), int(addr_end, 16)),
-              perms=(r, w, x, p),
-              offset=int(offset, 16),
-              dev=dev,
-              inode=int(inode),
-              pathname=pathname)
+                     perms=(r, w, x, p),
+                     offset=int(offset, 16),
+                     dev=dev,
+                     inode=int(inode),
+                     pathname=pathname)
 
 
 def AddressRangeOpt(text):
@@ -65,9 +65,9 @@ def parse_args(argv):
 
     pid_p = parser.add_mutually_exclusive_group(required=False)
     pid_p.add_argument("-p", "--pid", metavar="PID", type=str,
-                        help="The id of the process to read or write to")
+                       help="The id of the process to read or write to")
     pid_p.add_argument("-P", "--process", metavar="NAME", type=str,
-                        help="The name of the process to read or write to")
+                       help="The name of the process to read or write to")
 
     parser.add_argument("-S", "--suspend", action='store_true', default=False,
                         help="Suspend the given process while interacting with the memory")
@@ -149,6 +149,7 @@ def chunk_iter(lst, size):
 
 printable_set = set([ord(c) for c in (string.digits + string.ascii_letters + string.punctuation)])
 
+
 def write_hex(fp, buf, offset):
     skiped_zeroes = 0
     for i, chunk in enumerate(chunk_iter(buf, 16)):
@@ -160,7 +161,7 @@ def write_hex(fp, buf, offset):
             fp.write("  -- skipped nulls: {}\n".format(skiped_zeroes).encode())
             skiped_zeroes = 0
 
-        fp.write("{:016x}  ".format(i*16 + offset).encode())
+        fp.write("{:016x}  ".format(i * 16 + offset).encode())
 
         fp.write(" ".join(["{:02x}".format(c) for c in chunk[0:8]]).encode())
         fp.write(b"  ")
@@ -188,10 +189,13 @@ def main_read(pid, args):
     if args.pathname is not None:
         infos = [info for info in infos if info.pathname == args.pathname]
 
+    def write_func_default(fp, buf, offset):
+        fp.write(buf)
+
     if args.human_readable:
         write_func = write_hex
     else:
-        write_func = lambda fp, buf, offset: fp.write(buf)
+        write_func = write_func_default
 
     total_length = 0
     with open(os.path.join(procdir, "mem"), 'rb', buffering=0) as fin:
