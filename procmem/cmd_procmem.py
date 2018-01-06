@@ -44,27 +44,56 @@ def unpack_maps_re(m):
 
 def parse_args(argv):
     parser = argparse.ArgumentParser(description="A process memory inspection tool")
-    parser.add_argument("PID", nargs=1)
-    parser.add_argument("-o", "--outfile", metavar="FILE", type=str, required=True,
+    subparsers = parser.add_subparsers()
+
+    parser.add_argument("-p", "--pid", metavar="PID", type=str, required=True,
+                        help="The id of the process to read or write to")
+
+    read_p = subparsers.add_parser("read", help="Read memory")
+    read_p.set_defaults(command=main_read)
+    read_p.add_argument("-o", "--outfile", metavar="FILE", type=str, required=True,
                         help="Save memory to FILE")
-    parser.add_argument("-w", "--writable", action='store_true', default=False,
+    read_p.add_argument("-w", "--writable", action='store_true', default=False,
                         help="Only dump writable pages")
-    parser.add_argument("-s", "--split", action='store_true', default=False,
+    read_p.add_argument("-s", "--split", action='store_true', default=False,
                         help="Write each memory segment to it's own file")
-    parser.add_argument("-S", "--suspend", action='store_true', default=False,
+    read_p.add_argument("-S", "--suspend", action='store_true', default=False,
                         help="Suspend the given process while dumping memory")
-    parser.add_argument("-p", "--pathname", type=str, default=None,
+    read_p.add_argument("-P", "--pathname", type=str, default=None,
                         help="Limit output to segments matching pathname")
-    return parser.parse_args(argv)
+
+    info_p = subparsers.add_parser("info", help="Print information")
+    info_p.set_defaults(command=main_info)
+    info_p.add_argument("-v", "--verbose", action='store_true', default=False,
+                        help="Include additional information")
+
+    write_p = subparsers.add_parser("write", help="Write to memory")
+    write_p.set_defaults(command=main_write)
+    write_p.add_argument("-a", "--address", type=str, required=True,
+                         help="Address to write to")
+    write_p.add_argument("-b", "--bytes", metavar="BYTES", type=str,
+                         help="Bytes to write to the given address")
+    write_p.add_argument("-s", "--string", metavar="STRING", type=str,
+                         help="String to write to the given address")
+
+    search_p = subparsers.add_parser("search", help="Search through memory")
+    search_p.set_defaults(command=main_search)
+
+    args = parser.parse_args(argv)
+    print(args)
+    return args
 
 
 def make_outfile(template, addr):
     return "{}-{:016x}".format(template, addr)
 
 
-def main(argv):
-    args = parse_args(argv[1:])
-    pid = args.PID[0]
+def main_info(args):
+    pass
+
+
+def main_read(args):
+    pid = args.pid
 
     if pid == "self":
         pid = os.getpid()
@@ -77,8 +106,7 @@ def main(argv):
     procdir = os.path.join("/proc", str(pid))
 
     infos = []
-    shutil.copyfile(os.path.join(procdir, "maps"),
-                    args.outfile + ".maps")
+
     with open(os.path.join(procdir, "maps"), 'r') as fin:
         for line in fin:
             m = maps_re.match(line)
@@ -98,6 +126,9 @@ def main(argv):
     total_length = 0
     with open(os.path.join(procdir, "mem"), 'rb', buffering=0) as fin:
         if args.split:
+            shutil.copyfile(os.path.join(procdir, "maps"),
+                            args.outfile + ".maps")
+
             for info in infos:
                 print(info)
                 try:
@@ -128,6 +159,35 @@ def main(argv):
         os.kill(pid, signal.SIGCONT)
 
     print("dumped {} bytes".format(total_length))
+
+
+def main_write(args):
+    pid = args.pid
+    address = int(args.address)
+
+    if args.bytes is not None:
+        data = bytes.fromhex(args.bytes)
+    elif args.string is not None:
+        data = args.string.encode("UTF-8") + b"\0"
+    else:
+        raise Exception("--bytes or --string")
+
+    procdir = os.path.join("/proc", str(pid))
+
+    mem_filename = os.path.join(procdir, "mem")
+
+    with open(mem_filename, "wb", buffering=0) as fout:
+        fout.seek(address)
+        fout.write(data)
+
+
+def main_search(args):
+    pass
+
+
+def main(argv):
+    args = parse_args(argv[1:])
+    args.command(args)
 
 
 def main_entrypoint():
