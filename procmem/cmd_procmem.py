@@ -83,6 +83,8 @@ def parse_args(argv):
                          help="Bytes to write to the given address")
     write_p.add_argument("-s", "--string", metavar="STRING", type=str,
                          help="String to write to the given address")
+    write_p.add_argument("-S", "--string0", metavar="STRING", type=str,
+                         help="Write a \0 terminated string to the given address")
 
     search_p = subparsers.add_parser("search", help="Search through memory")
     search_p.set_defaults(command=main_search)
@@ -174,7 +176,9 @@ def main_write(pid, args):
     if args.bytes is not None:
         data = bytes.fromhex(args.bytes)
     elif args.string is not None:
-        data = args.string.encode("UTF-8") + b"\0"
+        data = args.string.encode("UTF-8")
+    elif args.string0 is not None:
+        data = args.string0.encode("UTF-8") + b"\0"
     else:
         raise Exception("--bytes or --string")
 
