@@ -150,7 +150,16 @@ def chunk_iter(lst, size):
 printable_set = set([ord(c) for c in (string.digits + string.ascii_letters + string.punctuation)])
 
 def write_hex(fp, buf, offset):
+    skiped_zeroes = 0
     for i, chunk in enumerate(chunk_iter(buf, 16)):
+        if chunk == (b"\x00" * 16):
+            skiped_zeroes += 1
+            continue
+
+        if skiped_zeroes != 0:
+            fp.write("  -- skipped nulls: {}\n".format(skiped_zeroes).encode())
+            skiped_zeroes = 0
+
         fp.write("{:016x}  ".format(i*16 + offset).encode())
 
         fp.write(" ".join(["{:02x}".format(c) for c in chunk[0:8]]).encode())
