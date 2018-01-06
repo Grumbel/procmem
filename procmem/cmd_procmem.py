@@ -65,8 +65,6 @@ def parse_args(argv):
                         help="Only dump writable pages")
     read_p.add_argument("-s", "--split", action='store_true', default=False,
                         help="Write each memory segment to it's own file")
-    read_p.add_argument("-S", "--suspend", action='store_true', default=False,
-                        help="Suspend the given process while dumping memory")
     read_p.add_argument("-H", "--human-readable", action='store_true', default=False,
                         help="Print memory in human readable hex format")
     read_p.add_argument("-P", "--pathname", type=str, default=None,
@@ -91,9 +89,7 @@ def parse_args(argv):
     search_p = subparsers.add_parser("search", help="Search through memory")
     search_p.set_defaults(command=main_search)
 
-    args = parser.parse_args(argv)
-    print(args)
-    return args
+    return parser.parse_args(argv)
 
 
 def make_outfile(template, addr):
@@ -240,6 +236,14 @@ def main(argv):
     args = parse_args(argv[1:])
     pid = pid_from_args(args)
 
+    if args.suspend:
+        os.kill(pid, signal.SIGSTOP)
+        try:
+            args.command(pid, args)
+        finally:
+            os.kill(pid, signal.SIGCONT)
+    else:
+        args.command(pid, args)
 
 
 def main_entrypoint():
