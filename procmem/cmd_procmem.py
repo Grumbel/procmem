@@ -24,6 +24,7 @@ import signal
 import string
 import psutil
 from collections import namedtuple
+from procmem.units import bytes2human_binary
 
 
 # address, perms, offset, dev, inode, pathname
@@ -83,11 +84,6 @@ def parse_args(argv):
                         help="Print memory in human readable hex format")
     read_p.add_argument("-P", "--pathname", type=str, default=None,
                         help="Limit output to segments matching pathname")
-
-    info_p = subparsers.add_parser("info", help="Print information")
-    info_p.set_defaults(command=main_info)
-    info_p.add_argument("-v", "--verbose", action='store_true', default=False,
-                        help="Include additional information")
     read_p.add_argument("-r", "--range", type=AddressRangeOpt, default=None,
                         help="Limit output to range")
     read_p.add_argument("-R", "--relative-range", type=AddressRangeOpt, default=None,
@@ -138,7 +134,13 @@ def read_memory_maps(pid):
 
 
 def main_info(pid, args):
-    pass
+    infos = read_memory_maps(pid)
+    total = 0
+    for info in infos:
+        total += len(info.addr_range)
+        print("{:>10}  {}  {}".format(bytes2human_binary(len(info.addr_range)), info.perms, info.pathname))
+    print("-" * 72)
+    print("Total: {} - {} bytes".format(bytes2human_binary(total), total))
 
 
 def chunk_iter(lst, size):
