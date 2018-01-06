@@ -230,7 +230,7 @@ def main_read(pid, args):
                 if args.range is not None:
                     fin.seek(args.range.start)
                     chunk = fin.read(len(args.range))
-                    write_func(fout, chunk, info.addr_range.start)
+                    write_func(fout, chunk, args.range.start)
                 else:
                     for info in infos:
                         print(info)
