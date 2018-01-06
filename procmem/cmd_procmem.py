@@ -248,7 +248,7 @@ def main_read(pid, args):
 
 
 def main_write(pid, args):
-    address = int(args.address)
+    address = int(args.address, 16)
 
     if args.bytes is not None:
         data = bytes.fromhex(args.bytes)
