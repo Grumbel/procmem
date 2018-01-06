@@ -48,7 +48,7 @@ def parse_args(argv):
     parser = argparse.ArgumentParser(description="A process memory inspection tool")
     subparsers = parser.add_subparsers()
 
-    pid_p = parser.add_mutually_exclusive_group(required=True)
+    pid_p = parser.add_mutually_exclusive_group(required=False)
     pid_p.add_argument("-p", "--pid", metavar="PID", type=str,
                         help="The id of the process to read or write to")
     pid_p.add_argument("-P", "--process", metavar="NAME", type=str,
@@ -85,6 +85,14 @@ def parse_args(argv):
                          help="String to write to the given address")
     write_p.add_argument("-S", "--string0", metavar="STRING", type=str,
                          help="Write a \0 terminated string to the given address")
+
+    list_p = subparsers.add_parser("list", help="List processes")
+    list_p.set_defaults(command=main_list)
+
+    info_p = subparsers.add_parser("info", help="Print information")
+    info_p.set_defaults(command=main_info)
+    info_p.add_argument("-v", "--verbose", action='store_true', default=False,
+                        help="Include additional information")
 
     search_p = subparsers.add_parser("search", help="Search through memory")
     search_p.set_defaults(command=main_search)
@@ -207,6 +215,11 @@ def main_write(pid, args):
         fout.write(data)
 
 
+def main_list(pid, args):
+    for p in psutil.process_iter():
+        print("{:5d}  {}".format(p.pid, p.name()))
+
+
 def main_search(pid, args):
     pass
 
@@ -228,8 +241,10 @@ def pid_from_args(args):
             return os.getpid()
         else:
             return int(args.pid)
-    else:
+    elif args.process is not None:
         return pid_by_name(args.process)
+    else:
+        return os.getpid()
 
 
 def main(argv):
