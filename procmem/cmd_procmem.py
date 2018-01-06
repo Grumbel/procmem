@@ -51,12 +51,22 @@ def AddressRangeOpt(text):
         s = int(g.group(1), 16)
         return range(s, s + 1)
 
-    g = re.match(r"^([0-9a-fA-F]+):([0-9a-fA-F]*)$", text)
+    g = re.match(r"^([0-9a-fA-F]+):([-+]?[0-9a-fA-F]*)$", text)
     if g is None:
         raise Exception("range argument wrong")
     else:
-        return range(int(g.group(1), 16),
-                     int(g.group(2), 16))
+        lhs_value = int(g.group(1), 16)
+        rhs = g.group(2)
+
+        if rhs[0] == "+":
+            rhs_value = lhs_value + int(rhs)
+        elif rhs[0] == "-":
+            rhs_value = lhs_value + int(rhs)
+            lhs_value, rhs_value = rhs_value, lhs_value
+        else:
+            rhs_value = int(rhs, 16)
+
+        return range(lhs_value, rhs_value)
 
 
 def parse_args(argv):
