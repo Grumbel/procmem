@@ -104,6 +104,9 @@ def parse_args(argv):
     search_p = subparsers.add_parser("search", help="Search through memory")
     search_p.set_defaults(command=main_search)
 
+    statm_p = subparsers.add_parser("statm", help="Memory usage information")
+    statm_p.set_defaults(command=main_statm)
+
     watch_p = subparsers.add_parser("watch", help="Watch memory region")
     watch_p.set_defaults(command=main_watch)
     watch_p.add_argument("-r", "--range", type=AddressRangeOpt, default=None,
@@ -297,6 +300,25 @@ def main_watch(pid, args):
                 sys.stdout.buffer.flush()
                 oldstate = newstate
             time.sleep(0.1)
+
+
+def main_statm(pid, args):
+    filename = os.path.join("/proc", str(pid), "statm")
+    with open(filename, "r") as fin:
+        content = fin.read()
+    size, resident, shared, text, lib, data, dt = [int(x) for x in content.split()]
+    page_size = 4096
+    print(("{:>10}  total program size\n"
+           "{:>10}  resident set size\n"
+           "{:>10}  shared size\n"
+           "{:>10}  text\n"
+           # "{:>10}  lib (unused,always 0)\n"
+           "{:>10}  data + stack"
+           # "{:>10}  dirty pages (unused, always 0)"
+           "")
+          .format(*[bytes2human_binary(x * page_size)
+                    for x in [size, resident, shared, text, data]]))
+
 
 def pid_by_name(name):
     results = [p for p in psutil.process_iter() if p.name() == name]
