@@ -136,7 +136,10 @@ def main_info(pid, args):
     total = 0
     for info in infos:
         total += info.length()
-        print("{:>10}  {}  {}".format(bytes2human_binary(info.length()), info.perms(), info.pathname))
+        print("{:012x}-{:012x}  {:>10}  {}  {}".format(info.addr_beg, info.addr_end,
+                                                     bytes2human_binary(info.length()),
+                                                     info.perms(),
+                                                     info.pathname))
     print("-" * 72)
     print("Total: {} - {} bytes".format(bytes2human_binary(total), total))
 
