@@ -69,14 +69,10 @@ def parse_args(argv):
     read_p.set_defaults(command=main_read)
     read_p.add_argument("-o", "--outfile", metavar="FILE", type=str, required=True,
                         help="Save memory to FILE")
-    read_p.add_argument("-w", "--writable", action='store_true', default=False,
-                        help="Only dump writable pages")
     read_p.add_argument("-s", "--split", action='store_true', default=False,
                         help="Write each memory segment to it's own file")
     read_p.add_argument("-H", "--human-readable", action='store_true', default=False,
                         help="Print memory in human readable hex format")
-    read_p.add_argument("-P", "--pathname", type=str, default=None,
-                        help="Limit output to segments matching pathname")
     read_p.add_argument("-r", "--range", type=AddressRangeOpt, default=None,
                         help="Limit output to range")
     read_p.add_argument("-R", "--relative-range", type=AddressRangeOpt, default=None,
@@ -104,6 +100,14 @@ def parse_args(argv):
     search_p = subparsers.add_parser("search", help="Search through memory")
     search_p.set_defaults(command=main_search)
 
+    # MemoryRegion filter
+    for p in [read_p, info_p]:
+        g = p.add_argument_group("Memory Region Filter")
+        g.add_argument("-P", "--pathname", type=str, default=None,
+                       help="Limit output to segments matching pathname")
+        g.add_argument("-w", "--writable", action='store_true', default=False,
+                       help="Only dump writable pages")
+
     return parser.parse_args(argv)
 
 
@@ -122,6 +126,7 @@ def read_memory_maps(pid):
 
 def main_info(pid, args):
     infos = read_memory_maps(pid)
+    infos = filter_memory_maps(args, infos)
     total = 0
     for info in infos:
         total += info.length()
@@ -165,16 +170,21 @@ def write_hex(fp, buf, offset):
         fp.write(b"\n")
 
 
-def main_read(pid, args):
-    procdir = os.path.join("/proc", str(pid))
-
-    infos = read_memory_maps(pid)
-
+def filter_memory_maps(args, infos):
     if args.writable:
         infos = [info for info in infos if info.writable]
 
     if args.pathname is not None:
         infos = [info for info in infos if info.pathname == args.pathname]
+
+    return infos
+
+
+def main_read(pid, args):
+    procdir = os.path.join("/proc", str(pid))
+
+    infos = read_memory_maps(pid)
+    infos = filter_memory_maps(args, infos)
 
     def write_func_default(fp, buf, offset):
         fp.write(buf)
