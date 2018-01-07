@@ -23,6 +23,7 @@ import shutil
 import signal
 import string
 import psutil
+import time
 
 from procmem.units import bytes2human_binary
 from procmem.memory_region import MemoryRegion
@@ -99,6 +100,11 @@ def parse_args(argv):
 
     search_p = subparsers.add_parser("search", help="Search through memory")
     search_p.set_defaults(command=main_search)
+
+    watch_p = subparsers.add_parser("watch", help="Watch memory region")
+    watch_p.set_defaults(command=main_watch)
+    watch_p.add_argument("-r", "--range", type=AddressRangeOpt, default=None,
+                        help="Watch the given range for changes")
 
     # MemoryRegion filter
     for p in [read_p, info_p]:
@@ -263,6 +269,25 @@ def main_list(pid, args):
 def main_search(pid, args):
     pass
 
+
+def main_watch(pid, args):
+    beg = args.range.start
+    end = args.range.stop
+
+    filename = os.path.join("/proc", str(pid), "mem")
+
+    print("watching", filename)
+    with open(filename, "rb", buffering=0) as fin:
+        oldstate = None
+        while True:
+            fin.seek(beg)
+            newstate = fin.read(end - beg)
+            if oldstate != newstate:
+                print("^-- change detected --")
+                write_hex(sys.stdout.buffer, newstate, beg)
+                sys.stdout.buffer.flush()
+                oldstate = newstate
+            time.sleep(0.1)
 
 def pid_by_name(name):
     results = [p for p in psutil.process_iter() if p.name() == name]
