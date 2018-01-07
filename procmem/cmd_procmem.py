@@ -22,27 +22,10 @@ import argparse
 import shutil
 import signal
 import string
-from collections import namedtuple
-from procmem.units import bytes2human_binary
 import psutil
 
-
-# address, perms, offset, dev, inode, pathname
-maps_re = re.compile(
-    r'([0-9a-f]+)-([0-9a-f]+) ([r-])([w-])([x-])([ps]) ([0-9a-f]+) (\d+:\d+) (\d+) *(.*)\n',
-    re.ASCII)
-
-PagesInfo = namedtuple('PagesInfo', ['addr_range', 'perms', 'offset', 'dev', 'inode', 'pathname'])
-
-
-def unpack_maps_re(m):
-    addr_beg, addr_end, r, w, x, p, offset, dev, inode, pathname = m.groups()
-    return PagesInfo(addr_range=range(int(addr_beg, 16), int(addr_end, 16)),
-                     perms=(r, w, x, p),
-                     offset=int(offset, 16),
-                     dev=dev,
-                     inode=int(inode),
-                     pathname=pathname)
+from procmem.units import bytes2human_binary
+from procmem.memory_region import MemoryRegion
 
 
 def AddressRangeOpt(text):
@@ -130,16 +113,10 @@ def make_outfile(template, addr):
 
 def read_memory_maps(pid):
     infos = []
-    maps_path = os.path.join("/proc", str(pid), "maps")
+    maps_path = os.path.join("/proc/", str(pid), "maps")
     with open(maps_path, 'r') as fin:
         for line in fin:
-            m = maps_re.match(line)
-            if not m:
-                print("unknown line format:")
-                print(line)
-            else:
-                info = unpack_maps_re(m)
-                infos.append(info)
+            infos.append(MemoryRegion.from_string(line))
     return infos
 
 
@@ -147,8 +124,8 @@ def main_info(pid, args):
     infos = read_memory_maps(pid)
     total = 0
     for info in infos:
-        total += len(info.addr_range)
-        print("{:>10}  {}  {}".format(bytes2human_binary(len(info.addr_range)), info.perms, info.pathname))
+        total += info.length()
+        print("{:>10}  {}  {}".format(bytes2human_binary(info.length()), info.perms(), info.pathname))
     print("-" * 72)
     print("Total: {} - {} bytes".format(bytes2human_binary(total), total))
 
@@ -194,7 +171,7 @@ def main_read(pid, args):
     infos = read_memory_maps(pid)
 
     if args.writable:
-        infos = [info for info in infos if info.perms[1] == 'w']
+        infos = [info for info in infos if info.writable]
 
     if args.pathname is not None:
         infos = [info for info in infos if info.pathname == args.pathname]
@@ -216,11 +193,11 @@ def main_read(pid, args):
             for info in infos:
                 print(info)
                 try:
-                    fin.seek(info.addr_range.start)
-                    chunk = fin.read(len(info.addr_range))
+                    fin.seek(info.addr_beg)
+                    chunk = fin.read(info.length())
                     total_length = len(chunk)
-                    with open(make_outfile(args.outfile, info.addr_range.start), 'wb') as fout:
-                        write_func(fout, chunk, info.addr_range.start)
+                    with open(make_outfile(args.outfile, info.addr_beg), 'wb') as fout:
+                        write_func(fout, chunk, info.addr_beg)
                 except OverflowError:
                     print("overflow error")
                 except OSError:
@@ -235,10 +212,10 @@ def main_read(pid, args):
                     for info in infos:
                         print(info)
                         try:
-                            fin.seek(info.addr_range.start)
-                            chunk = fin.read(len(info.addr_range))
+                            fin.seek(info.addr_beg)
+                            chunk = fin.read(info.length())
                             total_length = len(chunk)
-                            write_func(fout, chunk, info.addr_range.start)
+                            write_func(fout, chunk, info.addr_beg)
                         except OverflowError:
                             print("overflow error")
                         except OSError:
