@@ -321,14 +321,7 @@ def main_statm(pid, args):
 
 
 def pid_by_name(name):
-    results = [p for p in psutil.process_iter() if p.name() == name]
-    if results == []:
-        raise Exception("Couldn't find process with name={}".format(name))
-    elif len(results) != 1:
-        print(results)
-        raise Exception("process is not unique: name={}".format(name))
-    else:
-        return results[0].pid
+    return [p.pid for p in psutil.process_iter() if p.name() == name]
 
 
 def pid_from_args(args):
@@ -338,7 +331,13 @@ def pid_from_args(args):
         else:
             return int(args.pid)
     elif args.process is not None:
-        return pid_by_name(args.process)
+        pids = pid_by_name(args.process)
+        if len(pids) == 0:
+            raise Exception("Couldn't find process with name={}".format(args.process))
+        elif len(pids) == 1:
+            return pids[0]
+        else:
+            raise Exception("process is not unique: name={}".format(args.process))
     else:
         return os.getpid()
 
