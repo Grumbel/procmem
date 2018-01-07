@@ -129,16 +129,21 @@ def make_outfile(template, addr):
 
 def read_memory_maps(pid):
     infos = []
-    maps_path = os.path.join("/proc/", str(pid), "maps")
+    maps_path = os.path.join("/proc/", str(pid), "smaps")
     with open(maps_path, 'r') as fin:
-        for line in fin:
-            infos.append(MemoryRegion.from_string(line))
+        while True:
+            info = MemoryRegion.from_smaps_io(fin)
+            if info is not None:
+                infos.append(info)
+            else:
+                break
+
     return infos
 
 
 def main_info(pid, args):
     if args.raw:
-        filename = os.path.join("/proc", str(pid), "maps")
+        filename = os.path.join("/proc", str(pid), "smaps")
         with open(filename, "r") as fin:
             sys.stdout.write(fin.read())
     else:

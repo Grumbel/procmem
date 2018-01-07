@@ -23,6 +23,38 @@ class MemoryRegion:
     maps_re = re.compile(
         r'([0-9a-f]+)-([0-9a-f]+) ([r-])([w-])([x-])([ps]) ([0-9a-f]+) ([0-9a-f]+:[0-9a-f]+) (\d+) *(.*)\n',
         re.ASCII)
+    info_re = re.compile(r'^([A-Za-z_]+): *(\d+) kB$', re.ASCII)
+
+    @staticmethod
+    def from_smaps_io(fin):
+        line = fin.readline()
+        if line == '':
+            return None
+
+        region = MemoryRegion.from_string(line)
+
+        while True:
+            line = fin.readline()
+            assert line != ''
+            if line.startswith("VmFlags:"):
+                break
+            region._add_info_from_string(line)
+        region._add_vmflags_from_string(line)
+
+        return region
+
+    def _add_info_from_string(self, text):
+        """Parse additional info from /proc/$PID/smaps"""
+        match = MemoryRegion.info_re.match(text)
+        assert match is not None
+
+        name = match.group(1)
+        kB_count = int(match.group(2))
+        self.info[name] = kB_count * 1024
+
+    def _add_vmflags_from_string(self, text):
+        assert text.startswith("VmFlags:")
+        self.vmflags = text[8:].split()
 
     @staticmethod
     def from_string(text):
@@ -58,6 +90,9 @@ class MemoryRegion:
         self.dev = dev
         self.inode = inode
         self.pathname = pathname
+
+        self.info = {}
+        self.vmflags = []
 
     def length(self):
         return self.addr_end - self.addr_beg
