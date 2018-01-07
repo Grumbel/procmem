@@ -83,12 +83,13 @@ def parse_args(argv):
     write_p.set_defaults(command=main_write)
     write_p.add_argument("-a", "--address", type=str, required=True,
                          help="Address to write to")
-    write_p.add_argument("-b", "--bytes", metavar="BYTES", type=str,
-                         help="Bytes to write to the given address")
-    write_p.add_argument("-s", "--string", metavar="STRING", type=str,
-                         help="String to write to the given address")
-    write_p.add_argument("-S", "--string0", metavar="STRING", type=str,
-                         help="Write a \0 terminated string to the given address")
+    data_g = write_p.add_mutually_exclusive_group(required=True)
+    data_g.add_argument("-b", "--bytes", metavar="BYTES", type=str,
+                        help="Bytes to write to the given address")
+    data_g.add_argument("-s", "--string", metavar="STRING", type=str,
+                        help="String to write to the given address")
+    data_g.add_argument("-S", "--string0", metavar="STRING", type=str,
+                        help="Write a \0 terminated string to the given address")
 
     list_p = subparsers.add_parser("list", help="List processes")
     list_p.set_defaults(command=main_list)
@@ -259,8 +260,6 @@ def main_write(pid, args):
         data = args.string.encode("UTF-8")
     elif args.string0 is not None:
         data = args.string0.encode("UTF-8") + b"\0"
-    else:
-        raise Exception("--bytes or --string")
 
     procdir = os.path.join("/proc", str(pid))
 
