@@ -97,6 +97,8 @@ def parse_args(argv):
     info_p.set_defaults(command=main_info)
     info_p.add_argument("-v", "--verbose", action='store_true', default=False,
                         help="Include additional information")
+    info_p.add_argument("-R", "--raw", action='store_true', default=False,
+                        help="Print raw information from /proc/$PID/maps")
 
     search_p = subparsers.add_parser("search", help="Search through memory")
     search_p.set_defaults(command=main_search)
@@ -131,17 +133,22 @@ def read_memory_maps(pid):
 
 
 def main_info(pid, args):
-    infos = read_memory_maps(pid)
-    infos = filter_memory_maps(args, infos)
-    total = 0
-    for info in infos:
-        total += info.length()
-        print("{:012x}-{:012x}  {:>10}  {}  {}".format(info.addr_beg, info.addr_end,
-                                                     bytes2human_binary(info.length()),
-                                                     info.perms(),
-                                                     info.pathname))
-    print("-" * 72)
-    print("Total: {} - {} bytes".format(bytes2human_binary(total), total))
+    if args.raw:
+        filename = os.path.join("/proc", str(pid), "maps")
+        with open(filename, "r") as fin:
+            sys.stdout.write(fin.read())
+    else:
+        infos = read_memory_maps(pid)
+        infos = filter_memory_maps(args, infos)
+        total = 0
+        for info in infos:
+            total += info.length()
+            print("{:012x}-{:012x}  {:>10}  {}  {}".format(info.addr_beg, info.addr_end,
+                                                         bytes2human_binary(info.length()),
+                                                         info.perms(),
+                                                         info.pathname))
+        print("-" * 72)
+        print("Total: {} - {} bytes".format(bytes2human_binary(total), total))
 
 
 def chunk_iter(lst, size):
