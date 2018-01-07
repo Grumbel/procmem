@@ -110,7 +110,7 @@ def parse_args(argv):
     watch_p = subparsers.add_parser("watch", help="Watch memory region")
     watch_p.set_defaults(command=main_watch)
     watch_p.add_argument("-r", "--range", type=AddressRangeOpt, default=None,
-                        help="Watch the given range for changes")
+                         help="Watch the given range for changes")
 
     # MemoryRegion filter
     for p in [read_p, info_p]:
@@ -148,9 +148,9 @@ def main_info(pid, args):
         for info in infos:
             total += info.length()
             print("{:012x}-{:012x}  {:>10}  {}  {}".format(info.addr_beg, info.addr_end,
-                                                         bytes2human_binary(info.length()),
-                                                         info.perms(),
-                                                         info.pathname))
+                                                           bytes2human_binary(info.length()),
+                                                           info.perms(),
+                                                           info.pathname))
         print("-" * 72)
         print("Total: {} - {} bytes".format(bytes2human_binary(total), total))
 
