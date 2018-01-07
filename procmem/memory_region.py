@@ -21,7 +21,7 @@ import re
 class MemoryRegion:
     # address, perms, offset, dev, inode, pathname
     maps_re = re.compile(
-        r'([0-9a-f]+)-([0-9a-f]+) ([r-])([w-])([x-])([ps]) ([0-9a-f]+) (\d+:\d+) (\d+) *(.*)\n',
+        r'([0-9a-f]+)-([0-9a-f]+) ([r-])([w-])([x-])([ps]) ([0-9a-f]+) ([0-9a-f]+:[0-9a-f]+) (\d+) *(.*)\n',
         re.ASCII)
 
     @staticmethod
