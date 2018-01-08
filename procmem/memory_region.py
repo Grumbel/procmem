@@ -50,8 +50,8 @@ class MemoryRegion:
         assert match is not None
 
         name = match.group(1)
-        kB_count = int(match.group(2))
-        self.info[name] = kB_count * 1024
+        kb_count = int(match.group(2))
+        self.info[name] = kb_count * 1024
 
     def _add_vmflags_from_string(self, text):
         assert text.startswith("VmFlags:")
