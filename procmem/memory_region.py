@@ -16,6 +16,7 @@
 
 
 import re
+from procmem.units import bytes2human_binary
 
 
 class MemoryRegion:
@@ -103,6 +104,13 @@ class MemoryRegion:
             "w" if self.writable else "-",
             "x" if self.executable else "-",
             "p" if self.private else "s")
+
+    def __str__(self):
+        return "{:012x}-{:012x}  {:>10}  {}  {}".format(
+            self.addr_beg, self.addr_end,
+            bytes2human_binary(self.length()),
+            self.perms(),
+            self.pathname)
 
 
 # EOF #
