@@ -122,6 +122,8 @@ def parse_args(argv):
                        help="Limit output to segments matching pathname")
         g.add_argument("-w", "--writable", action='store_true', default=False,
                        help="Only dump writable pages")
+        g.add_argument("--no-default-filter", action='store_true', default=False,
+                       help="Do not filter [vvar] and [vsyscall] regions")
 
     return parser.parse_args(argv)
 
@@ -206,11 +208,21 @@ def write_hex(fout, buf, offset, width=16):
 
 
 def filter_memory_maps(args, infos):
-    if args.writable:
-        infos = [info for info in infos if info.writable]
+    if not args.no_default_filter:
+        # Reading [vvar] fails to read with OSError: "[Errno 5]
+        # Input/output error", so we filter it out to prevent issues
+        # https://stackoverflow.com/questions/42730260/unable-to-access-contents-of-a-vvar-memory-region-in-gdb
+        infos = [info for info in infos if info.pathname != "[vvar]"]
 
-    if args.pathname is not None:
-        infos = [info for info in infos if info.pathname == args.pathname]
+        # Reading [vsyscall] fails with OverflowError: "Python int
+        # too large to convert to C long", so it gets filtered as well
+        infos = [info for info in infos if info.pathname != "[vsyscall]"]
+
+        if args.writable:
+            infos = [info for info in infos if info.writable]
+
+        if args.pathname is not None:
+            infos = [info for info in infos if info.pathname == args.pathname]
 
     return infos
 
