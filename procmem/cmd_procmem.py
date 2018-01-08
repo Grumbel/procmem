@@ -167,32 +167,42 @@ def chunk_iter(lst, size):
 printable_set = set([ord(c) for c in string.digits + string.ascii_letters + string.punctuation])
 
 
-def write_hex(fp, buf, offset):
-    skiped_zeroes = 0
-    for i, chunk in enumerate(chunk_iter(buf, 16)):
+def write_hex(fout, buf, offset, width=16):
+    """Write the content of 'buf' out in a hexdump style
+
+    Args:
+        fout: file object to write to
+        buf: the buffer to be pretty printed
+        offset: the starting offset of the buffer
+        width: how many bytes should be displayed per row
+    """
+
+    skipped_zeroes = 0
+    for i, chunk in enumerate(chunk_iter(buf, width)):
+        # zero skipping
         if chunk == (b"\x00" * 16):
-            skiped_zeroes += 1
+            skipped_zeroes += 1
             continue
+        elif skipped_zeroes != 0:
+            fout.write("  -- skipped zeroes: {}\n".format(skipped_zeroes).encode())
+            skipped_zeroes = 0
 
-        if skiped_zeroes != 0:
-            fp.write("  -- skipped nulls: {}\n".format(skiped_zeroes).encode())
-            skiped_zeroes = 0
+        # starting address of the current line
+        fout.write("{:016x}  ".format(i * 16 + offset).encode())
 
-        fp.write("{:016x}  ".format(i * 16 + offset).encode())
+        fout.write(
+            "  ".join([" ".join(["{:02x}".format(c) for c in subchunk])
+                       for subchunk in chunk_iter(chunk, 8)]).encode())
 
-        fp.write(" ".join(["{:02x}".format(c) for c in chunk[0:8]]).encode())
-        fp.write(b"  ")
-        fp.write(" ".join(["{:02x}".format(c) for c in chunk[8:16]]).encode())
-
-        fp.write(b"  |")
+        fout.write(b"  |")
         for c in chunk:
             if c in printable_set:
-                fp.write(bytes([c]))
+                fout.write(bytes([c]))
             else:
-                fp.write(b".")
-        fp.write(b"|")
+                fout.write(b".")
+        fout.write(b"|")
 
-        fp.write(b"\n")
+        fout.write(b"\n")
 
 
 def filter_memory_maps(args, infos):
