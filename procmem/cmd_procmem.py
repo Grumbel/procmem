@@ -239,12 +239,13 @@ def main_read(pid, args):
                 try:
                     fin.seek(args.range.start)
                     chunk = fin.read(len(args.range))
-                    total_length += len(chunk)
-                    fout.write(chunk)
                 except OverflowError:
                     logging.exception("overflow error")
                 except OSError:
                     logging.exception("OS error")
+
+                total_length += len(chunk)
+                fout.write(chunk)
     else:
         infos = read_memory_maps(pid)
         infos = filter_memory_maps(args, infos)
@@ -272,17 +273,18 @@ def main_read(pid, args):
                     try:
                         fin.seek(info.addr_beg)
                         chunk = fin.read(info.length())
-                        total_length += len(chunk)
-                        if fout is not None:
-                            if args.sparse:
-                                fout.seek(info.addr_beg)
-                            fout.write(chunk)
-                        else:
-                            write_hex(sys.stdout, chunk, info.addr_beg, args.width)
                     except OverflowError:
                         logging.exception("overflow error: %s", info)
                     except OSError:
                         logging.exception("OS error: %s", info)
+
+                    total_length += len(chunk)
+                    if fout is not None:
+                        if args.sparse:
+                            fout.seek(info.addr_beg)
+                        fout.write(chunk)
+                    else:
+                        write_hex(sys.stdout, chunk, info.addr_beg, args.width)
 
     print("dumped {}".format(bytes2human_binary(total_length)))
 
