@@ -79,6 +79,8 @@ def parse_args(argv):
                         help="Print memory in human readable hex format")
     read_p.add_argument("-r", "--range", type=AddressRangeOpt, default=None,
                         help="Limit output to range")
+    read_p.add_argument("-W", "--width", metavar="NUM", type=int, default=16,
+                        help="Write NUM bytes per row")
 
     write_p = subparsers.add_parser("write", help="Write to memory")
     write_p.set_defaults(command=main_write)
@@ -178,29 +180,29 @@ def write_hex(fout, buf, offset, width=16):
     skipped_zeroes = 0
     for i, chunk in enumerate(chunk_iter(buf, width)):
         # zero skipping
-        if chunk == (b"\x00" * 16):
+        if chunk == (b"\x00" * width):
             skipped_zeroes += 1
             continue
         elif skipped_zeroes != 0:
-            fout.write("  -- skipped zeroes: {}\n".format(skipped_zeroes).encode())
+            fout.write("  -- skipped zeroes: {}\n".format(skipped_zeroes))
             skipped_zeroes = 0
 
         # starting address of the current line
-        fout.write("{:016x}  ".format(i * 16 + offset).encode())
+        fout.write("{:016x}  ".format(i * width + offset))
 
         fout.write(
             "  ".join([" ".join(["{:02x}".format(c) for c in subchunk])
-                       for subchunk in chunk_iter(chunk, 8)]).encode())
+                       for subchunk in chunk_iter(chunk, 8)]))
 
-        fout.write(b"  |")
+        fout.write("  |")
         for c in chunk:
             if c in printable_set:
-                fout.write(bytes([c]))
+                fout.write(chr(c))
             else:
-                fout.write(b".")
-        fout.write(b"|")
+                fout.write(".")
+        fout.write("|")
 
-        fout.write(b"\n")
+        fout.write("\n")
 
 
 def filter_memory_maps(args, infos):
@@ -264,7 +266,7 @@ def main_read(pid, args):
                                 fout.seek(info.addr_beg)
                             fout.write(chunk)
                         else:
-                            write_hex(sys.stdout, chunk, info.addr_beg)
+                            write_hex(sys.stdout, chunk, info.addr_beg, args.width)
                     except OverflowError as err:
                         print("overflow error", err)
                     except OSError as err:
