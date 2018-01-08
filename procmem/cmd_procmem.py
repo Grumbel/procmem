@@ -19,11 +19,11 @@ import re
 import os
 import sys
 import argparse
-import shutil
 import signal
 import string
 import psutil
 import time
+import logging
 from contextlib import ExitStack
 
 from procmem.units import bytes2human_binary
@@ -230,9 +230,9 @@ def main_read(pid, args):
                 total_length += len(chunk)
                 fout.write(chunk)
             except OverflowError:
-                print("overflow error", file=sys.stderr)
+                logging.exception("overflow error")
             except OSError:
-                print("OS error", file=sys.stderr)
+                logging.exception("OS error")
     else:
         infos = read_memory_maps(pid)
         infos = filter_memory_maps(args, infos)
@@ -268,9 +268,9 @@ def main_read(pid, args):
                         else:
                             write_hex(sys.stdout, chunk, info.addr_beg, args.width)
                     except OverflowError as err:
-                        print("overflow error", err)
+                        logging.exception("overflow error: %s", info)
                     except OSError as err:
-                        print("OS error", err)
+                        logging.exception("OS error: %s", info)
 
     print("dumped {}".format(bytes2human_binary(total_length)))
 
@@ -364,6 +364,7 @@ def pid_from_args(args):
 
 
 def main(argv):
+    logging.basicConfig(level=logging.DEBUG)
     args = parse_args(argv[1:])
     pid = pid_from_args(args)
 
