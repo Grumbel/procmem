@@ -58,6 +58,8 @@ def parse_args(argv):
     parser = argparse.ArgumentParser(description="A process memory inspection tool")
     subparsers = parser.add_subparsers()
 
+    parser.set_defaults(command=None)
+
     pid_p = parser.add_mutually_exclusive_group(required=False)
     pid_p.add_argument("-p", "--pid", metavar="PID", type=str,
                        help="The id of the process to read or write to")
@@ -125,7 +127,11 @@ def parse_args(argv):
         g.add_argument("--no-default-filter", action='store_true', default=False,
                        help="Do not filter [vvar] and [vsyscall] regions")
 
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    if args.command is None:
+        parser.print_help()
+        sys.exit(0)
+    return args
 
 
 def make_outfile(template, addr):
