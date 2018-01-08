@@ -24,6 +24,7 @@ import signal
 import string
 import psutil
 import time
+from contextlib import ExitStack
 
 from procmem.units import bytes2human_binary
 from procmem.memory_region import MemoryRegion
@@ -68,16 +69,16 @@ def parse_args(argv):
 
     read_p = subparsers.add_parser("read", help="Read memory")
     read_p.set_defaults(command=main_read)
-    read_p.add_argument("-o", "--outfile", metavar="FILE", type=str, required=True,
+    read_p.add_argument("-o", "--outfile", metavar="FILE", type=str, default=None,
                         help="Save memory to FILE")
+    read_p.add_argument("-S", "--sparse", action='store_true', default=False,
+                        help="Write a sparse output file")
     read_p.add_argument("-s", "--split", action='store_true', default=False,
                         help="Write each memory segment to it's own file")
     read_p.add_argument("-H", "--human-readable", action='store_true', default=False,
                         help="Print memory in human readable hex format")
     read_p.add_argument("-r", "--range", type=AddressRangeOpt, default=None,
                         help="Limit output to range")
-    read_p.add_argument("-R", "--relative-range", type=AddressRangeOpt, default=None,
-                        help="Limit output to range, address relative to the start of the segment")
 
     write_p = subparsers.add_parser("write", help="Write to memory")
     write_p.set_defaults(command=main_write)
@@ -215,55 +216,61 @@ def filter_memory_maps(args, infos):
 def main_read(pid, args):
     procdir = os.path.join("/proc", str(pid))
 
-    infos = read_memory_maps(pid)
-    infos = filter_memory_maps(args, infos)
-
-    def write_func_default(fp, buf, offset):
-        fp.write(buf)
-
-    if args.human_readable:
-        write_func = write_hex
-    else:
-        write_func = write_func_default
-
     total_length = 0
-    with open(os.path.join(procdir, "mem"), 'rb', buffering=0) as fin:
-        if args.split:
-            shutil.copyfile(os.path.join(procdir, "maps"),
-                            args.outfile + ".maps")
 
-            for info in infos:
-                print(info)
-                try:
-                    fin.seek(info.addr_beg)
-                    chunk = fin.read(info.length())
-                    total_length = len(chunk)
-                    with open(make_outfile(args.outfile, info.addr_beg), 'wb') as fout:
-                        write_func(fout, chunk, info.addr_beg)
-                except OverflowError:
-                    print("overflow error")
-                except OSError:
-                    print("OS error")
-        else:
-            with open(args.outfile, 'wb') as fout:
-                if args.range is not None:
-                    fin.seek(args.range.start)
-                    chunk = fin.read(len(args.range))
-                    write_func(fout, chunk, args.range.start)
-                else:
-                    for info in infos:
+    mem_file = os.path.join(procdir, "mem")
+    if args.range is not None:
+        with open(mem_file, 'rb', buffering=0) as fin, \
+             open(args.outfile, 'wb') as fout:
+            try:
+                fin.seek(args.range.start)
+                chunk = fin.read(len(args.range))
+                total_length += len(chunk)
+                fout.write(chunk)
+            except OverflowError:
+                print("overflow error", file=sys.stderr)
+            except OSError:
+                print("OS error", file=sys.stderr)
+    else:
+        infos = read_memory_maps(pid)
+        infos = filter_memory_maps(args, infos)
+
+        fout = None
+        with ExitStack() as stack:
+            with open(mem_file, 'rb', buffering=0) as fin:
+                for info in infos:
+                    if args.outfile is None:
+                        fout = None
+                    elif args.split:
+                        filename = make_outfile(args.outfile, info.addr_beg)
+                        print("writing to {}".format(filename))
+                        fout = stack.enter_context(
+                            open(filename, "wb"))
+                    else:
+                        if fout is None:
+                            print("writing to {}".format(args.outfile))
+                            fout = stack.enter_context(
+                                open(args.outfile, "wb"))
+
+                    if fout is None:
                         print(info)
-                        try:
-                            fin.seek(info.addr_beg)
-                            chunk = fin.read(info.length())
-                            total_length = len(chunk)
-                            write_func(fout, chunk, info.addr_beg)
-                        except OverflowError:
-                            print("overflow error")
-                        except OSError:
-                            print("OS error")
 
-    print("dumped {} bytes".format(total_length))
+                    try:
+                        fin.seek(info.addr_beg)
+                        chunk = fin.read(info.length())
+                        total_length += len(chunk)
+                        if fout is not None:
+                            if args.sparse:
+                                fout.seek(info.addr_beg)
+                            fout.write(chunk)
+                        else:
+                            write_hex(sys.stdout, chunk, info.addr_beg)
+                    except OverflowError as err:
+                        print("overflow error", err)
+                    except OSError as err:
+                        print("OS error", err)
+
+    print("dumped {}".format(bytes2human_binary(total_length)))
 
 
 def main_write(pid, args):
