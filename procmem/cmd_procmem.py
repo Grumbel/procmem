@@ -234,17 +234,17 @@ def main_read(pid, args):
 
     mem_file = os.path.join(procdir, "mem")
     if args.range is not None:
-        with open(mem_file, 'rb', buffering=0) as fin, \
-             open(args.outfile, 'wb') as fout:
-            try:
-                fin.seek(args.range.start)
-                chunk = fin.read(len(args.range))
-                total_length += len(chunk)
-                fout.write(chunk)
-            except OverflowError:
-                logging.exception("overflow error")
-            except OSError:
-                logging.exception("OS error")
+        with open(mem_file, 'rb', buffering=0) as fin:
+            with open(args.outfile, 'wb') as fout:
+                try:
+                    fin.seek(args.range.start)
+                    chunk = fin.read(len(args.range))
+                    total_length += len(chunk)
+                    fout.write(chunk)
+                except OverflowError:
+                    logging.exception("overflow error")
+                except OSError:
+                    logging.exception("OS error")
     else:
         infos = read_memory_maps(pid)
         infos = filter_memory_maps(args, infos)
@@ -279,9 +279,9 @@ def main_read(pid, args):
                             fout.write(chunk)
                         else:
                             write_hex(sys.stdout, chunk, info.addr_beg, args.width)
-                    except OverflowError as err:
+                    except OverflowError:
                         logging.exception("overflow error: %s", info)
-                    except OSError as err:
+                    except OSError:
                         logging.exception("OS error: %s", info)
 
     print("dumped {}".format(bytes2human_binary(total_length)))
