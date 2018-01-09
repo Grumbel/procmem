@@ -24,6 +24,7 @@ import string
 import psutil
 import time
 import logging
+import PIL.Image
 from contextlib import ExitStack
 
 from procmem.units import bytes2human_binary
@@ -73,6 +74,8 @@ def parse_args(argv):
     read_p.set_defaults(command=main_read)
     read_p.add_argument("-o", "--outfile", metavar="FILE", type=str, default=None,
                         help="Save memory to FILE")
+    read_p.add_argument("--png", metavar="FILE", type=str, default=None,
+                        help="Save memory into a PNG file")
     read_p.add_argument("-S", "--sparse", action='store_true', default=False,
                         help="Write a sparse output file")
     read_p.add_argument("-s", "--split", action='store_true', default=False,
@@ -289,8 +292,17 @@ def main_read(pid, args):
                         if args.sparse:
                             fout.seek(info.addr_beg)
                         fout.write(chunk)
-                    else:
+
+                    if fout is None and args.png is None:
                         write_hex(sys.stdout, chunk, info.addr_beg, args.width)
+
+                    if args.png is not None:
+                        png_outfile = make_outfile(args.png, info.addr_beg) + ".png"
+                        png_height = (len(chunk) + 1024) // 1024
+                        padding = (1024 - len(chunk) % 1024) * b"\00"
+                        img = PIL.Image.frombytes(mode="L", size=(1024, png_height), data=chunk + padding)
+                        logging.info("writing %s", png_outfile)
+                        img.save(png_outfile)
 
     print("dumped {}".format(bytes2human_binary(total_length)))
 
