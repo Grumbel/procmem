@@ -256,11 +256,12 @@ def filter_memory_maps(args, infos):
         # too large to convert to C long", so it gets filtered as well
         infos = [info for info in infos if info.pathname != "[vsyscall]"]
 
-        if args.writable:
-            infos = [info for info in infos if info.writable]
 
-        if args.pathname is not None:
-            infos = [info for info in infos if info.pathname == args.pathname]
+    if args.writable:
+        infos = [info for info in infos if info.writable]
+
+    if args.pathname is not None:
+        infos = [info for info in infos if info.pathname == args.pathname]
 
     return infos
 
