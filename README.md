@@ -56,3 +56,32 @@ Examples
       4.07MiB  shared size
      20.00KiB  text
     616.00KiB  data + stack
+
+Notes
+-----
+
+The following are empirical observations of a processes behaviour on
+Linux 4.13.0 x86_64, other versions or architectures might behave
+differently.
+
+The region with the pathname `[heap]` is only used for `malloc()`
+allocations smaller than 128KiB, everything larger will go into an
+anonymous region after the `[heap]` region.
+
+The smallest block returned by `malloc()` is 32 bytes.
+
+Allocating memory and not initializing it or initializing it with
+zeroes via `calloc()` will not actually use any RAM. Reading from that
+memory will not cause it to use RAM either, only when the memory is
+written to it starts to occupy RAM.
+
+The 'total program size' is the size of (virtual) memory that is
+mapped into the processes address space. RSS or 'resident set size' is
+the amount of RAM actually used, pages that haven't been initialized
+are not counted.
+
+Reading `[vvar]` fails to read with `OSError: "[Errno 5] Input/output
+error"`, procmem will filter it out by default.
+
+Reading `[vsyscall]` fails with `OverflowError: "Python int #too large
+to convert to C long"`, it gets filtered as well.
