@@ -127,6 +127,8 @@ def parse_args(argv):
                        help="Limit output to segments matching pathname")
         g.add_argument("-w", "--writable", action='store_true', default=False,
                        help="Only dump writable pages")
+        g.add_argument("--size", metavar="SIZE", type=int, default=None,
+                       help="Only show areas larger than SIZE")
         g.add_argument("--no-default-filter", action='store_true', default=False,
                        help="Do not filter [vvar] and [vsyscall] regions")
 
@@ -256,6 +258,8 @@ def filter_memory_maps(args, infos):
         # too large to convert to C long", so it gets filtered as well
         infos = [info for info in infos if info.pathname != "[vsyscall]"]
 
+    if args.size is not None:
+        infos = [info for info in infos if info.length() >= args.size]
 
     if args.writable:
         infos = [info for info in infos if info.writable]
