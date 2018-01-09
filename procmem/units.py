@@ -31,7 +31,7 @@ units = {
     "ZB": 1000**7,
     "YB": 1000**8,
 
-    "kiB": 1024**1,
+    "KiB": 1024**1,
     "MiB": 1024**2,
     "GiB": 1024**3,
     "TiB": 1024**4,
@@ -43,7 +43,7 @@ units = {
 
 
 def size2bytes(text: str) -> int:
-    """Convert a text string (e.g. "582.5MB") to a byte count. kB=1000, kiB=1024"""
+    """Convert a text string (e.g. "582.5MB") to a byte count. kB=1000, KiB=1024"""
 
     m = re.match(r"^\s*([0-9]+|[0-9]+\.[0-9]+)\s*([A-Za-z]+|)\s*$", text)
     if m:
