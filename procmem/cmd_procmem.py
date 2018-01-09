@@ -141,20 +141,6 @@ def make_outfile(template, addr):
     return "{}-{:016x}".format(template, addr)
 
 
-def read_memory_maps(pid):
-    infos = []
-    maps_path = os.path.join("/proc/", str(pid), "smaps")
-    with open(maps_path, 'r') as fin:
-        while True:
-            info = MemoryRegion.from_smaps_io(fin)
-            if info is not None:
-                infos.append(info)
-            else:
-                break
-
-    return infos
-
-
 vmflags_to_doc = {
     "rd": "readable",
     "wr": "writable",
@@ -193,7 +179,7 @@ def main_info(pid, args):
         with open(filename, "r") as fin:
             sys.stdout.write(fin.read())
     else:
-        infos = read_memory_maps(pid)
+        infos = MemoryRegion.regions_from_pid(pid)
         infos = filter_memory_maps(args, infos)
         total = 0
         for info in infos:
@@ -208,7 +194,7 @@ def main_info(pid, args):
                 else:
                     print("    {}:".format("VmFlags"))
                     for flag in info.vmflags:
-                          print("        {} - {}".format(flag, vmflags_to_doc[flag]))
+                        print("        {} - {}".format(flag, vmflags_to_doc[flag]))
                 print()
         print("-" * 72)
         print("Total: {} - {} bytes".format(bytes2human_binary(total), total))
@@ -299,7 +285,7 @@ def main_read(pid, args):
                 total_length += len(chunk)
                 fout.write(chunk)
     else:
-        infos = read_memory_maps(pid)
+        infos = MemoryRegion.regions_from_pid(pid)
         infos = filter_memory_maps(args, infos)
 
         fout = None
