@@ -273,17 +273,20 @@ def main_read(pid, args):
     mem_file = os.path.join(procdir, "mem")
     if args.range is not None:
         with open(mem_file, 'rb', buffering=0) as fin:
-            with open(args.outfile, 'wb') as fout:
-                try:
-                    fin.seek(args.range.start)
-                    chunk = fin.read(len(args.range))
-                except OverflowError:
-                    logging.exception("overflow error")
-                except OSError:
-                    logging.exception("OS error")
+            try:
+                fin.seek(args.range.start)
+                chunk = fin.read(len(args.range))
 
-                total_length += len(chunk)
-                fout.write(chunk)
+                if args.outfile is not None:
+                    with open(args.outfile, 'wb') as fout:
+                        total_length += len(chunk)
+                        fout.write(chunk)
+                else:
+                    write_hex(sys.stdout, chunk, args.range.start, args.width)
+            except OverflowError:
+                logging.exception("overflow error")
+            except OSError:
+                logging.exception("OS error")
     else:
         infos = MemoryRegion.regions_from_pid(pid)
         infos = filter_memory_maps(args, infos)
