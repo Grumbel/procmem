@@ -155,6 +155,38 @@ def read_memory_maps(pid):
     return infos
 
 
+vmflags_to_doc = {
+    "rd": "readable",
+    "wr": "writable",
+    "ex": "executable",
+    "sh": "shared",
+    "mr": "may read",
+    "mw": "may write",
+    "me": "may execute",
+    "ms": "may share",
+    "gd": "stack segment grows down",
+    "pf": "pure PFN range",
+    "dw": "disabled write to the mapped file",
+    "lo": "pages are locked in memory",
+    "io": "memory mapped I/O area",
+    "sr": "sequential read advise provided",
+    "rr": "random read advise provided",
+    "dc": "do not copy area on fork",
+    "de": "do not expand area on remapping",
+    "ac": "area is accountable",
+    "nr": "swap space is not reserved for the area",
+    "ht": "area uses huge tlb pages",
+    "nl": "non-linear mapping",
+    "ar": "architecture specific flag",
+    "dd": "do not include area into core dump",
+    "sd": "soft-dirty flag",
+    "mm": "mixed map area",
+    "hg": "huge page advise flag",
+    "nh": "no-huge page advise flag",
+    "mg": "mergeable advise flag",
+}
+
+
 def main_info(pid, args):
     if args.raw:
         filename = os.path.join("/proc", str(pid), "smaps")
@@ -167,6 +199,17 @@ def main_info(pid, args):
         for info in infos:
             total += info.length()
             print(info)
+            if args.verbose:
+                for k, v in info.info.items():
+                    print("    {:18}: {:>10}".format(k, bytes2human_binary(v)))
+
+                if False:
+                    print("    {:18}: {}".format("VmFlags", " ".join(info.vmflags)))
+                else:
+                    print("    {}:".format("VmFlags"))
+                    for flag in info.vmflags:
+                          print("        {} - {}".format(flag, vmflags_to_doc[flag]))
+                print()
         print("-" * 72)
         print("Total: {} - {} bytes".format(bytes2human_binary(total), total))
 
