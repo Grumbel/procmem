@@ -87,17 +87,12 @@ def parse_args(argv):
     read_p.add_argument("-W", "--width", metavar="NUM", type=int, default=16,
                         help="Write NUM bytes per row")
 
-    write_p = subparsers.add_parser("write", help="Write to memory")
+    write_p = subparsers.add_parser("write",
+                                    description="Write the given memory sequency to the given address.",
+                                    help="Write to memory")
     write_p.set_defaults(command=main_write)
     write_p.add_argument("-a", "--address", type=str, required=True,
                          help="Address to write to")
-    data_g = write_p.add_mutually_exclusive_group(required=True)
-    data_g.add_argument("-b", "--bytes", metavar="BYTES", type=str,
-                        help="Bytes to write to the given address")
-    data_g.add_argument("-s", "--string", metavar="STRING", type=str,
-                        help="String to write to the given address")
-    data_g.add_argument("-S", "--string0", metavar="STRING", type=str,
-                        help="Write a \0 terminated string to the given address")
 
     list_p = subparsers.add_parser("list", help="List processes")
     list_p.set_defaults(command=main_list)
@@ -131,6 +126,16 @@ def parse_args(argv):
                        help="Only show areas larger than SIZE")
         g.add_argument("--no-default-filter", action='store_true', default=False,
                        help="Do not filter [vvar] and [vsyscall] regions")
+
+    for p in [write_p, search_p]:
+        g = p.add_argument_group("Memory Sequence")
+        g = g.add_mutually_exclusive_group(required=True)
+        g.add_argument("-b", "--bytes", metavar="BYTES", type=str,
+                       help="Create sequence from bytes in hex")
+        g.add_argument("-s", "--string", metavar="STRING", type=str,
+                       help="Create sequence from string, no trailing \\0")
+        g.add_argument("-S", "--string0", metavar="STRING", type=str,
+                       help="Create sequence from string, terminate it with \\0")
 
     args = parser.parse_args(argv)
     if args.command is None:
