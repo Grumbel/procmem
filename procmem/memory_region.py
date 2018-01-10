@@ -20,7 +20,7 @@ import re
 import struct
 import sys
 
-from procmem.units import bytes2human_binary
+from procmem import bytefmt
 
 
 def chunk_iter(lst, size):
@@ -164,7 +164,7 @@ class MemoryRegion:
     def __str__(self):
         return "{:012x}-{:012x}  {:>10}  {}  {}".format(
             self.addr_beg, self.addr_end,
-            bytes2human_binary(self.length()),
+            bytefmt.humanize(self.length(), style="binary"),
             self.perms(),
             self.pathname)
 

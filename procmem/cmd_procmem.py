@@ -27,7 +27,7 @@ import logging
 import PIL.Image
 from contextlib import ExitStack
 
-from procmem.units import bytes2human_binary
+from procmem import bytefmt
 from procmem.memory_region import MemoryRegion
 
 
@@ -189,7 +189,7 @@ def main_info(pid, args):
             print(info)
             if args.verbose:
                 for k, v in info.info.items():
-                    print("    {:18}: {:>10}".format(k, bytes2human_binary(v)))
+                    print("    {:18}: {:>10}".format(k, bytefmt.humanize(v, style="binary")))
 
                 if False:
                     print("    {:18}: {}".format("VmFlags", " ".join(info.vmflags)))
@@ -199,7 +199,7 @@ def main_info(pid, args):
                         print("        {} - {}".format(flag, vmflags_to_doc[flag]))
                 print()
         print("-" * 72)
-        print("Total: {} - {} bytes".format(bytes2human_binary(total), total))
+        print("Total: {} - {} bytes".format(bytefmt.humanize(total, style="binary"), total))
 
 
 def chunk_iter(lst, size):
@@ -341,7 +341,7 @@ def main_read(pid, args):
                         logging.info("writing %s", png_outfile)
                         img.save(png_outfile)
 
-    print("dumped {}".format(bytes2human_binary(total_length)))
+    print("dumped {}".format(bytefmt.humanize(total_length, style="binary")))
 
 
 def main_write(pid, args):
@@ -406,7 +406,7 @@ def main_statm(pid, args):
            "{:>10}  data + stack"
            # "{:>10}  dirty pages (unused, always 0)"
            "")
-          .format(*[bytes2human_binary(x * page_size)
+          .format(*[bytefmt.humanize(x * page_size, style="binary")
                     for x in [size, resident, shared, text, data]]))
 
 
