@@ -20,15 +20,16 @@ import os
 import sys
 import argparse
 import signal
-import string
 import psutil
-import time
 import logging
-import PIL.Image
-from contextlib import ExitStack
 
-import bytefmt
-from procmem.memory_region import MemoryRegion
+from procmem.main_info import main_info
+from procmem.main_list import main_list
+from procmem.main_read import main_read
+from procmem.main_search import main_search
+from procmem.main_statm import main_statm
+from procmem.main_watch import main_watch
+from procmem.main_write import main_write
 
 
 def AddressRangeOpt(text):
@@ -144,277 +145,6 @@ def parse_args(argv):
     return args
 
 
-def make_outfile(template, addr):
-    return "{}-{:016x}".format(template, addr)
-
-
-vmflags_to_doc = {
-    "rd": "readable",
-    "wr": "writable",
-    "ex": "executable",
-    "sh": "shared",
-    "mr": "may read",
-    "mw": "may write",
-    "me": "may execute",
-    "ms": "may share",
-    "gd": "stack segment grows down",
-    "pf": "pure PFN range",
-    "dw": "disabled write to the mapped file",
-    "lo": "pages are locked in memory",
-    "io": "memory mapped I/O area",
-    "sr": "sequential read advise provided",
-    "rr": "random read advise provided",
-    "dc": "do not copy area on fork",
-    "de": "do not expand area on remapping",
-    "ac": "area is accountable",
-    "nr": "swap space is not reserved for the area",
-    "ht": "area uses huge tlb pages",
-    "nl": "non-linear mapping",
-    "ar": "architecture specific flag",
-    "dd": "do not include area into core dump",
-    "sd": "soft-dirty flag",
-    "mm": "mixed map area",
-    "hg": "huge page advise flag",
-    "nh": "no-huge page advise flag",
-    "mg": "mergeable advise flag",
-}
-
-
-def main_info(pid, args):
-    if args.raw:
-        filename = os.path.join("/proc", str(pid), "smaps")
-        with open(filename, "r") as fin:
-            sys.stdout.write(fin.read())
-    else:
-        infos = MemoryRegion.regions_from_pid(pid)
-        infos = filter_memory_maps(args, infos)
-        total = 0
-        for info in infos:
-            total += info.length()
-            print(info)
-            if args.verbose:
-                for k, v in info.info.items():
-                    print("    {:18}: {:>10}".format(k, bytefmt.humanize(v, style="binary")))
-
-                if False:
-                    print("    {:18}: {}".format("VmFlags", " ".join(info.vmflags)))
-                else:
-                    print("    {}:".format("VmFlags"))
-                    for flag in info.vmflags:
-                        print("        {} - {}".format(flag, vmflags_to_doc[flag]))
-                print()
-        print("-" * 72)
-        print("Total: {} - {} bytes".format(bytefmt.humanize(total, style="binary"), total))
-
-
-def chunk_iter(lst, size):
-    return (lst[p:p + size] for p in range(0, len(lst), size))
-
-
-printable_set = set([ord(c) for c in string.digits + string.ascii_letters + string.punctuation])
-
-
-def write_hex(fout, buf, offset, width=16):
-    """Write the content of 'buf' out in a hexdump style
-
-    Args:
-        fout: file object to write to
-        buf: the buffer to be pretty printed
-        offset: the starting offset of the buffer
-        width: how many bytes should be displayed per row
-    """
-
-    skipped_zeroes = 0
-    for i, chunk in enumerate(chunk_iter(buf, width)):
-        # zero skipping
-        if chunk == (b"\x00" * width):
-            skipped_zeroes += 1
-            continue
-        elif skipped_zeroes != 0:
-            fout.write("  -- skipped zeroes: {}\n".format(skipped_zeroes))
-            skipped_zeroes = 0
-
-        # starting address of the current line
-        fout.write("{:016x}  ".format(i * width + offset))
-
-        fout.write(
-            "  ".join([" ".join(["{:02x}".format(c) for c in subchunk])
-                       for subchunk in chunk_iter(chunk, 8)]))
-
-        fout.write("  |")
-        for c in chunk:
-            if c in printable_set:
-                fout.write(chr(c))
-            else:
-                fout.write(".")
-        fout.write("|")
-
-        fout.write("\n")
-
-
-def filter_memory_maps(args, infos):
-    if not args.no_default_filter:
-        # Reading [vvar] fails to read with OSError: "[Errno 5]
-        # Input/output error", so we filter it out to prevent issues
-        # https://stackoverflow.com/questions/42730260/unable-to-access-contents-of-a-vvar-memory-region-in-gdb
-        infos = [info for info in infos if info.pathname != "[vvar]"]
-
-        # Reading [vsyscall] fails with OverflowError: "Python int
-        # too large to convert to C long", so it gets filtered as well
-        infos = [info for info in infos if info.pathname != "[vsyscall]"]
-
-    if args.size is not None:
-        infos = [info for info in infos if info.length() >= args.size]
-
-    if args.writable:
-        infos = [info for info in infos if info.writable]
-
-    if args.pathname is not None:
-        infos = [info for info in infos if info.pathname == args.pathname]
-
-    return infos
-
-
-def main_read(pid, args):
-    procdir = os.path.join("/proc", str(pid))
-
-    total_length = 0
-
-    mem_file = os.path.join(procdir, "mem")
-    if args.range is not None:
-        with open(mem_file, 'rb', buffering=0) as fin:
-            try:
-                fin.seek(args.range.start)
-                chunk = fin.read(len(args.range))
-
-                if args.outfile is not None:
-                    with open(args.outfile, 'wb') as fout:
-                        total_length += len(chunk)
-                        fout.write(chunk)
-                else:
-                    write_hex(sys.stdout, chunk, args.range.start, args.width)
-            except OverflowError:
-                logging.exception("overflow error")
-            except OSError:
-                logging.exception("OS error")
-    else:
-        infos = MemoryRegion.regions_from_pid(pid)
-        infos = filter_memory_maps(args, infos)
-
-        fout = None
-        with ExitStack() as stack:
-            with open(mem_file, 'rb', buffering=0) as fin:
-                for info in infos:
-                    if args.outfile is None:
-                        fout = None
-                    elif args.split:
-                        filename = make_outfile(args.outfile, info.addr_beg)
-                        print("writing to {}".format(filename))
-                        fout = stack.enter_context(
-                            open(filename, "wb"))
-                    else:
-                        if fout is None:
-                            print("writing to {}".format(args.outfile))
-                            fout = stack.enter_context(
-                                open(args.outfile, "wb"))
-
-                    if fout is None:
-                        print(info)
-
-                    try:
-                        fin.seek(info.addr_beg)
-                        chunk = fin.read(info.length())
-                    except OverflowError:
-                        logging.exception("overflow error: %s", info)
-                    except OSError:
-                        logging.exception("OS error: %s", info)
-
-                    total_length += len(chunk)
-                    if fout is not None:
-                        if args.sparse:
-                            fout.seek(info.addr_beg)
-                        fout.write(chunk)
-
-                    if fout is None and args.png is None:
-                        write_hex(sys.stdout, chunk, info.addr_beg, args.width)
-
-                    if args.png is not None:
-                        png_outfile = make_outfile(args.png, info.addr_beg) + ".png"
-                        png_height = (len(chunk) + 1024) // 1024
-                        padding = (1024 - len(chunk) % 1024) * b"\00"
-                        img = PIL.Image.frombytes(mode="L", size=(1024, png_height), data=chunk + padding)
-                        logging.info("writing %s", png_outfile)
-                        img.save(png_outfile)
-
-    print("dumped {}".format(bytefmt.humanize(total_length, style="binary")))
-
-
-def main_write(pid, args):
-    address = int(args.address, 16)
-
-    if args.bytes is not None:
-        data = bytes.fromhex(args.bytes)
-    elif args.string is not None:
-        data = args.string.encode("UTF-8")
-    elif args.string0 is not None:
-        data = args.string0.encode("UTF-8") + b"\0"
-
-    procdir = os.path.join("/proc", str(pid))
-
-    mem_filename = os.path.join(procdir, "mem")
-
-    with open(mem_filename, "wb", buffering=0) as fout:
-        fout.seek(address)
-        fout.write(data)
-
-
-def main_list(pid, args):
-    for p in psutil.process_iter():
-        print("{:5d}  {}".format(p.pid, p.name()))
-
-
-def main_search(pid, args):
-    pass
-
-
-def main_watch(pid, args):
-    beg = args.range.start
-    end = args.range.stop
-
-    filename = os.path.join("/proc", str(pid), "mem")
-
-    print("watching", filename)
-    with open(filename, "rb", buffering=0) as fin:
-        oldstate = None
-        while True:
-            fin.seek(beg)
-            newstate = fin.read(end - beg)
-            if oldstate != newstate:
-                print("^-- change detected --")
-                write_hex(sys.stdout.buffer, newstate, beg)
-                sys.stdout.buffer.flush()
-                oldstate = newstate
-            time.sleep(0.1)
-
-
-def main_statm(pid, args):
-    filename = os.path.join("/proc", str(pid), "statm")
-    with open(filename, "r") as fin:
-        content = fin.read()
-    size, resident, shared, text, lib, data, dt = [int(x) for x in content.split()]
-    page_size = 4096
-    print(("{:>10}  total program size\n"
-           "{:>10}  resident set size\n"
-           "{:>10}  shared size\n"
-           "{:>10}  text\n"
-           # "{:>10}  lib (unused,always 0)\n"
-           "{:>10}  data + stack"
-           # "{:>10}  dirty pages (unused, always 0)"
-           "")
-          .format(*[bytefmt.humanize(x * page_size, style="binary")
-                    for x in [size, resident, shared, text, data]]))
-
-
 def pid_by_name(name):
     return [p.pid for p in psutil.process_iter() if p.name() == name]
 
@@ -440,6 +170,7 @@ def pid_from_args(args):
 def main(argv):
     logging.basicConfig(level=logging.DEBUG)
     args = parse_args(argv[1:])
+    print(args)
     pid = pid_from_args(args)
 
     if args.suspend:

@@ -18,13 +18,33 @@
 import os
 import re
 import struct
-import sys
 
 import bytefmt
 
+from procmem.itertools import chunk_iter
 
-def chunk_iter(lst, size):
-    return (lst[p:p + size] for p in range(0, len(lst), size))
+
+def filter_memory_maps(args, infos):
+    if not args.no_default_filter:
+        # Reading [vvar] fails to read with OSError: "[Errno 5]
+        # Input/output error", so we filter it out to prevent issues
+        # https://stackoverflow.com/questions/42730260/unable-to-access-contents-of-a-vvar-memory-region-in-gdb
+        infos = [info for info in infos if info.pathname != "[vvar]"]
+
+        # Reading [vsyscall] fails with OverflowError: "Python int
+        # too large to convert to C long", so it gets filtered as well
+        infos = [info for info in infos if info.pathname != "[vsyscall]"]
+
+    if args.size is not None:
+        infos = [info for info in infos if info.length() >= args.size]
+
+    if args.writable:
+        infos = [info for info in infos if info.writable]
+
+    if args.pathname is not None:
+        infos = [info for info in infos if info.pathname == args.pathname]
+
+    return infos
 
 
 class MemoryRegion:
@@ -34,15 +54,28 @@ class MemoryRegion:
         re.ASCII)
     info_re = re.compile(r'^([A-Za-z_]+): *(\d+) kB$', re.ASCII)
 
+    PAGE_RAM = (1 << 63)  # page is present in RAM
+    PAGE_SWAP = (1 << 62)  # page is in swap space
+    PAGE_FILE = (1 << 61)  # page is a file-mapped page or a shared anonymous page
+    # 60–56 (since Linux 3.11) Zero
+    PAGE_SOFT_DIRTY = (1 << 55)  # PTE is soft-dirty (see the kernel source file Documentation/vm/soft-dirty.txt).
+
+    # If the page is present in RAM (bit 63), then these bits
+    # provide the page frame number, which can be used to index
+    # /proc/kpageflags and /proc/kpagecount. If the page is
+    # present in swap (bit 62), then bits 4-0 give the swap type,
+    # and bits 54-5 encode the swap offset.
+    FRAME_MASK = 0x3fffffffffffff
+
     @staticmethod
     def regions_from_pid(pid):
         infos = []
         maps_path = os.path.join("/proc/", str(pid), "smaps")
 
-        pagemap_path = os.path.join("/proc/{}/pagemap".format(pid))
+        # pagemap_path = os.path.join("/proc/{}/pagemap".format(pid))
 
-        with open(pagemap_path, 'rb', buffering=0) as pagemap_io, \
-             open(maps_path, 'r') as fin:
+        # with open(pagemap_path, 'rb', buffering=0) as pagemap_io,
+        with open(maps_path, 'r') as fin:
             while True:
                 info = MemoryRegion.from_smaps_io(fin)
                 if info is not None:
@@ -55,31 +88,19 @@ class MemoryRegion:
 
     def _process_pagemap(self, io):
         assert False, "work in progress"
-        PAGE_RAM = (1<<63)  # page is present in RAM
-        PAGE_SWAP = (1<<62)  # page is in swap space
-        PAGE_FILE = (1<<61) # page is a file-mapped page or a shared anonymous page
-        # 60–56 (since Linux 3.11) Zero
-        PAGE_SOFT_DIRTY= (1<<55)  # PTE is soft-dirty (see the kernel source file Documentation/vm/soft-dirty.txt).
-
-        # If the page is present in RAM (bit 63), then these bits
-        # provide the page frame number, which can be used to index
-        # /proc/kpageflags and /proc/kpagecount. If the page is
-        # present in swap (bit 62), then bits 4-0 give the swap type,
-        # and bits 54-5 encode the swap offset.
-        FRAME_MASK=0x3fffffffffffff
 
         # io.seek(self.addr_beg // 8)
         l = (self.addr_end - self.addr_beg) // 4096 * 8
-        io.seek(self.addr_beg//4096 * 8)
+        io.seek(self.addr_beg // 4096 * 8)
         print("PAGEMAP {} {}".format(l, self))
         buf = io.read(l)
         for b in chunk_iter(buf, 8):
-            v = struct.unpack("Q".format(len(buf)//8)[0], b)[0]
+            v = struct.unpack("Q".format(len(buf) // 8)[0], b)[0]
             print("    {} {} {} {}".format(
-                "RAM" if (v & PAGE_RAM) else " - ",
-                "SWP" if (v & PAGE_SWAP) else " - ",
-                "FIL" if (v & PAGE_FILE) else " - ",
-                (v & FRAME_MASK)
+                "RAM" if (v & MemoryRegion.PAGE_RAM) else " - ",
+                "SWP" if (v & MemoryRegion.PAGE_SWAP) else " - ",
+                "FIL" if (v & MemoryRegion.PAGE_FILE) else " - ",
+                (v & MemoryRegion.FRAME_MASK)
             ))
 
     @staticmethod
