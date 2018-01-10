@@ -14,36 +14,20 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-SOURCES := $(wildcard \
-  procmem/*.py \
-  tests/*.py)
 
-all: flake test # autopep
+import argparse
+import os
+import unittest
 
-autopep:
-	autopep8  --max-line=120  --in-place $(SOURCES)
+from procmem.main_list import main_list
+import stdio
 
-test:
-	python3 -m unittest discover -s tests/
 
-flake:
-	flake8 --ignore=N802 --max-line-length=120 $(SOURCES)
+class MainListTestCase(unittest.TestCase):
 
-PYLINT_TARGETS := $(addprefix .pylint/, $(SOURCES))
+    def test_main_list(self):
+        with stdio.redirect() as (stdout, stderr):
+            main_list(os.getpid(), argparse.Namespace())
 
-$(PYLINT_TARGETS): .pylint/%.py: %.py
-	mkdir -p $(dir $@)
-	PYTHONPATH=. epylint3 $< --rcfile=.pylintrc --max-line-length=120
-	touch $@
-
-pylint: $(PYLINT_TARGETS)
-
-clean:
-	rm -vrf .pylint/
-
-install:
-	sudo -H pip3 install --force-reinstall --ignore-installed --no-deps .
-
-.PHONY: all autopep flake test flake pylint clean install
 
 # EOF #
