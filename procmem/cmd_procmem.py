@@ -170,7 +170,6 @@ def pid_from_args(args):
 def main(argv):
     logging.basicConfig(level=logging.DEBUG)
     args = parse_args(argv[1:])
-    print(args)
     pid = pid_from_args(args)
 
     if args.suspend:
