@@ -20,7 +20,7 @@ import re
 import struct
 import sys
 
-from procmem import bytefmt
+import bytefmt
 
 
 def chunk_iter(lst, size):

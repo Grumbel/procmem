@@ -27,7 +27,7 @@ import logging
 import PIL.Image
 from contextlib import ExitStack
 
-from procmem import bytefmt
+import bytefmt
 from procmem.memory_region import MemoryRegion
 
 

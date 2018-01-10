@@ -6,6 +6,12 @@ to a processes memory, as well as printing information related to a
 processes allocated memory. This is accomplished via the
 `/proc/$PID/smaps` and `/proc/$PID/mem` files.
 
+Installation
+------------
+
+    sudo -H pip3 install -r requirements.txt
+    sudo -H pip3 install -e .
+
 Examples
 --------
 

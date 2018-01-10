@@ -2,3 +2,4 @@
 /procmem.egg-info/
 __pycache__/
 /.pylint/
+/src/
