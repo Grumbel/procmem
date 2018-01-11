@@ -15,8 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-import os
-
+from procmem.memory import Memory
 from procmem.pack import text2bytes
 
 
@@ -25,13 +24,8 @@ def main_write(pid, args):
 
     data = text2bytes(args.DATA, args.type)
 
-    procdir = os.path.join("/proc", str(pid))
-
-    mem_filename = os.path.join(procdir, "mem")
-
-    with open(mem_filename, "wb", buffering=0) as fout:
-        fout.seek(address)
-        fout.write(data)
+    with Memory.from_pid(pid, mode='wb') as mem:
+        mem.write(address, data)
 
 
 # EOF #
