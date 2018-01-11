@@ -23,6 +23,11 @@ from setuptools import setup, find_packages
 setup(
     name='procmem',
     version='0.1.0',
+
+    author="Ingo Ruhnke",
+    author_email="grumbel@gmail.com",
+    url="https://github.com/Grumbel/procmem",
+
     scripts=[],
     entry_points={
         'console_scripts': [
