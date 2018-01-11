@@ -105,8 +105,17 @@ def parse_args(argv):
     info_p.add_argument("-R", "--raw", action='store_true', default=False,
                         help="Print raw information from /proc/$PID/maps")
 
-    search_p = subparsers.add_parser("search", help="Search through memory")
+    search_p = subparsers.add_parser("search",
+                                     description="Search for the given memory sequence",
+                                     help="Search through memory")
     search_p.set_defaults(command=main_search)
+    search_p.add_argument("-c", "--context", metavar="BYTES", type=int, default=16,
+                          help="Display context around the located address")
+    search_p.add_argument("-B", "--before-context", metavar="BYTES", type=int, default=None,
+                          help="Display context before the located address")
+    search_p.add_argument("-A", "--after-context", metavar="BYTES", type=int, default=None,
+                          help="Display context after the located address")
+
 
     statm_p = subparsers.add_parser("statm", help="Memory usage information")
     statm_p.set_defaults(command=main_statm)
@@ -117,7 +126,7 @@ def parse_args(argv):
                          help="Watch the given range for changes")
 
     # MemoryRegion filter
-    for p in [read_p, info_p]:
+    for p in [read_p, info_p, search_p]:
         g = p.add_argument_group("Memory Region Filter")
         g.add_argument("-P", "--pathname", type=str, default=None,
                        help="Limit output to segments matching pathname")
