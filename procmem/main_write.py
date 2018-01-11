@@ -17,13 +17,13 @@
 
 import os
 
-from procmem.util import bytes_from_args
+from procmem.pack import text2bytes
 
 
 def main_write(pid, args):
     address = int(args.address, 16)
 
-    data = bytes_from_args(args)
+    data = text2bytes(args.DATA, args.type)
 
     procdir = os.path.join("/proc", str(pid))
 

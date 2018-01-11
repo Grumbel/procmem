@@ -19,8 +19,9 @@ import os
 import sys
 
 from procmem.memory_region import MemoryRegion, filter_memory_maps
-from procmem.util import bytes_from_args
+from procmem.pack import text2bytes
 from procmem.hexdump import write_hex
+
 
 def search(needle, haystack):
     results = []
@@ -41,7 +42,7 @@ def main_search(pid, args):
     infos = MemoryRegion.regions_from_pid(pid)
     infos = filter_memory_maps(args, infos)
 
-    needle = bytes_from_args(args)
+    needle = text2bytes(args.NEEDLE, args.type)
 
     mem_file = os.path.join("/proc", str(pid), "mem")
 
