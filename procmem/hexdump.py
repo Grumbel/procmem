@@ -46,16 +46,23 @@ def write_hex(fout, buf, offset, width=16):
         # starting address of the current line
         fout.write("{:016x}  ".format(i * width + offset))
 
-        fout.write(
-            "  ".join([" ".join(["{:02x}".format(c) for c in subchunk])
-                       for subchunk in chunk_iter(chunk, 8)]))
+        # bytes column
+        column = "  ".join([" ".join(["{:02x}".format(c) for c in subchunk])
+                            for subchunk in chunk_iter(chunk, 8)])
+        w = width * 2 + (width - 1) + ((width // 8) - 1)
+        if len(column) != w:
+            column += " " * (w - len(column))
+        fout.write(column)
 
+        # ASCII character column
         fout.write("  |")
         for c in chunk:
             if c in PRINTABLE_CHARS:
                 fout.write(chr(c))
             else:
                 fout.write(".")
+        if len(chunk) < width:
+            fout.write(" " * (width - len(chunk)))
         fout.write("|")
 
         fout.write("\n")
