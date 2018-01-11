@@ -63,7 +63,7 @@ def main_search(pid, args):
                         s = max(0, addr - before_context)
                         e = min(len(haystack), addr + len(needle) + after_context)
                         context = haystack[s:e]
-                        write_hex(sys.stdout, context, info.addr_beg + s)
+                        write_hex(sys.stdout, context, info.addr_beg + s, args.width)
                         print()
 
 

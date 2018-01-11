@@ -115,7 +115,8 @@ def parse_args(argv):
                           help="Display context before the located address")
     search_p.add_argument("-A", "--after-context", metavar="BYTES", type=int, default=None,
                           help="Display context after the located address")
-
+    search_p.add_argument("-W", "--width", metavar="NUM", type=int, default=16,
+                          help="Write NUM bytes per row")
 
     statm_p = subparsers.add_parser("statm", help="Memory usage information")
     statm_p.set_defaults(command=main_statm)
