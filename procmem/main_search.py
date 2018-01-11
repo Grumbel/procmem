@@ -55,17 +55,17 @@ def main_search(pid, args):
 
     for info in infos:
         with open(mem_file, 'rb', buffering=0) as fin:
-                fin.seek(info.addr_beg)
-                haystack = fin.read(info.length())
-                addrs = search(needle, haystack)
-                for addr in addrs:
-                    print("found pattern at {:016x}".format(info.addr_beg + addr))
-                    if show_context:
-                        s = max(0, addr - before_context)
-                        e = min(len(haystack), addr + len(needle) + after_context)
-                        context = haystack[s:e]
-                        write_hex(sys.stdout, context, info.addr_beg + s, args.width)
-                        print()
+            fin.seek(info.addr_beg)
+            haystack = fin.read(info.length())
+            addrs = search(needle, haystack)
+            for addr in addrs:
+                print("found pattern at {:016x}".format(info.addr_beg + addr))
+                if show_context:
+                    s = max(0, addr - before_context)
+                    e = min(len(haystack), addr + len(needle) + after_context)
+                    context = haystack[s:e]
+                    write_hex(sys.stdout, context, info.addr_beg + s, args.width)
+                    print()
 
 
 # EOF #
