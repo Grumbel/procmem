@@ -15,23 +15,15 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-import os
+def bytes_from_args(args):
+    if args.bytes is not None:
+        return bytes.fromhex(args.bytes)
+    elif args.string is not None:
+        return args.string.encode("UTF-8")
+    elif args.string0 is not None:
+        return args.string0.encode("UTF-8") + b"\0"
 
-from procmem.util import bytes_from_args
-
-
-def main_write(pid, args):
-    address = int(args.address, 16)
-
-    data = bytes_from_args(args)
-
-    procdir = os.path.join("/proc", str(pid))
-
-    mem_filename = os.path.join(procdir, "mem")
-
-    with open(mem_filename, "wb", buffering=0) as fout:
-        fout.seek(address)
-        fout.write(data)
+    assert False
 
 
 # EOF #
