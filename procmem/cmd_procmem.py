@@ -26,6 +26,7 @@ import logging
 from procmem.main_info import main_info
 from procmem.main_list import main_list
 from procmem.main_read import main_read
+from procmem.main_replace import main_replace
 from procmem.main_search import main_search
 from procmem.main_statm import main_statm
 from procmem.main_watch import main_watch
@@ -123,13 +124,18 @@ def parse_args(argv):
     statm_p = subparsers.add_parser("statm", help="Memory usage information")
     statm_p.set_defaults(command=main_statm)
 
+    replace_p = subparsers.add_parser("replace", help="Search and replace a section of memory")
+    replace_p.set_defaults(command=main_replace)
+    replace_p.add_argument("NEEDLE", help="Search for NEEDLE")
+    replace_p.add_argument("DATA", help="Replace NEEDLE with DATA")
+
     watch_p = subparsers.add_parser("watch", help="Watch memory region")
     watch_p.set_defaults(command=main_watch)
     watch_p.add_argument("-r", "--range", type=AddressRangeOpt, default=None,
                          help="Watch the given range for changes")
 
     # MemoryRegion filter
-    for p in [read_p, info_p, search_p]:
+    for p in [read_p, info_p, search_p, replace_p]:
         g = p.add_argument_group("Memory Region Filter")
         g.add_argument("-P", "--pathname", type=str, default=None,
                        help="Limit output to segments matching pathname")
@@ -140,7 +146,7 @@ def parse_args(argv):
         g.add_argument("--no-default-filter", action='store_true', default=False,
                        help="Do not filter [vvar] and [vsyscall] regions")
 
-    for p in [write_p, search_p]:
+    for p in [write_p, search_p, replace_p]:
         p.add_argument("-t", "--type", metavar="TYPE", type=str, default="string",
                        help="Specify the type of the data (int8, int16, float, double, ...)")
 
