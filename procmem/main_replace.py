@@ -15,31 +15,26 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-import os
-
-from procmem.memory_region import MemoryRegion, filter_memory_maps
+from procmem.memory import Memory
+from procmem.memory_region import filter_memory_maps
 from procmem.pack import text2bytes
 from procmem.main_search import search
 
 
 def main_replace(pid, args):
-    infos = MemoryRegion.regions_from_pid(pid)
-    infos = filter_memory_maps(args, infos)
-
     needle = text2bytes(args.NEEDLE, args.type)
     data = text2bytes(args.DATA, args.type)
 
-    mem_file = os.path.join("/proc", str(pid), "mem")
+    with Memory.from_pid(pid, mode='r+b') as mem:
+        infos = mem.regions()
+        infos = filter_memory_maps(args, infos)
 
-    for info in infos:
-        with open(mem_file, 'r+b', buffering=0) as fp:
-            fp.seek(info.addr_beg)
-            haystack = fp.read(info.length())
+        for info in infos:
+            haystack = mem.read(info.addr_beg, info.addr_end)
             addrs = search(needle, haystack)
 
             for addr in addrs:
-                fp.seek(info.addr_beg + addr)
-                fp.write(data)
+                mem.write(info.addr_beg + addr, data)
                 print("replaced data at {:016x}".format(info.addr_beg + addr))
 
 
