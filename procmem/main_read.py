@@ -15,7 +15,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-import os
 import sys
 import logging
 from contextlib import ExitStack
@@ -23,7 +22,8 @@ from contextlib import ExitStack
 import PIL
 import bytefmt
 
-from procmem.memory_region import MemoryRegion, filter_memory_maps
+from procmem.memory import Memory
+from procmem.memory_region import filter_memory_maps
 from procmem.hexdump import write_hex
 
 
@@ -32,34 +32,25 @@ def make_outfile(template, addr):
 
 
 def main_read(pid, args):
-    procdir = os.path.join("/proc", str(pid))
-
     total_length = 0
 
-    mem_file = os.path.join(procdir, "mem")
     if args.range is not None:
-        with open(mem_file, 'rb', buffering=0) as fin:
-            try:
-                fin.seek(args.range.start)
-                chunk = fin.read(len(args.range))
+        with Memory.from_pid(pid) as mem:
+            chunk = mem.read(args.range.start, args.range.end)
 
-                if args.outfile is not None:
-                    with open(args.outfile, 'wb') as fout:
-                        total_length += len(chunk)
-                        fout.write(chunk)
-                else:
-                    write_hex(sys.stdout, chunk, args.range.start, args.width)
-            except OverflowError:
-                logging.exception("overflow error")
-            except OSError:
-                logging.exception("OS error")
+            if args.outfile is not None:
+                with open(args.outfile, 'wb') as fout:
+                    total_length += len(chunk)
+                    fout.write(chunk)
+            else:
+                write_hex(sys.stdout, chunk, args.range.start, args.width)
     else:
-        infos = MemoryRegion.regions_from_pid(pid)
-        infos = filter_memory_maps(args, infos)
-
         fout = None
         with ExitStack() as stack:
-            with open(mem_file, 'rb', buffering=0) as fin:
+            with Memory.from_pid(pid) as mem:
+                infos = mem.regions()
+                infos = filter_memory_maps(args, infos)
+
                 for info in infos:
                     if args.outfile is None:
                         fout = None
@@ -78,8 +69,7 @@ def main_read(pid, args):
                         print(info)
 
                     try:
-                        fin.seek(info.addr_beg)
-                        chunk = fin.read(info.length())
+                        chunk = mem.read(info.addr_beg, info.addr_end)
                     except OverflowError:
                         logging.exception("overflow error: %s", info)
                     except OSError:
