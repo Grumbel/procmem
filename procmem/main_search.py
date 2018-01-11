@@ -15,10 +15,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-import os
 import sys
 
-from procmem.memory_region import MemoryRegion, filter_memory_maps
+from procmem.memory_region import filter_memory_maps
+from procmem.memory import Memory
 from procmem.pack import text2bytes
 from procmem.hexdump import write_hex
 
@@ -39,12 +39,7 @@ def search(needle, haystack):
 
 
 def main_search(pid, args):
-    infos = MemoryRegion.regions_from_pid(pid)
-    infos = filter_memory_maps(args, infos)
-
     needle = text2bytes(args.NEEDLE, args.type)
-
-    mem_file = os.path.join("/proc", str(pid), "mem")
 
     if args.context == 0:
         show_context = False
@@ -53,10 +48,12 @@ def main_search(pid, args):
         before_context = args.before_context or args.context
         after_context = args.after_context or args.context
 
-    for info in infos:
-        with open(mem_file, 'rb', buffering=0) as fin:
-            fin.seek(info.addr_beg)
-            haystack = fin.read(info.length())
+    with Memory.from_pid(pid) as mem:
+        infos = mem.regions()
+        infos = filter_memory_maps(args, infos)
+
+        for info in infos:
+            haystack = mem.read(info.addr_beg, info.addr_end)
             addrs = search(needle, haystack)
             for addr in addrs:
                 print("found pattern at {:016x}".format(info.addr_beg + addr))

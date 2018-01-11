@@ -69,11 +69,13 @@ class MemoryRegion:
 
     @staticmethod
     def regions_from_pid(pid):
-        infos = []
         maps_path = os.path.join("/proc/", str(pid), "smaps")
-
         # pagemap_path = os.path.join("/proc/{}/pagemap".format(pid))
+        return MemoryRegion.regions_from_file(maps_path)
 
+    @staticmethod
+    def regions_from_file(maps_path):
+        infos = []
         # with open(pagemap_path, 'rb', buffering=0) as pagemap_io,
         with open(maps_path, 'r') as fin:
             while True:
