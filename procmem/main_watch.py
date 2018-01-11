@@ -16,9 +16,9 @@
 
 
 import time
-import os
 import sys
 
+from procmem.memory import Memory
 from procmem.hexdump import write_hex
 
 
@@ -26,14 +26,11 @@ def main_watch(pid, args):
     beg = args.range.start
     end = args.range.stop
 
-    filename = os.path.join("/proc", str(pid), "mem")
-
-    print("watching", filename)
-    with open(filename, "rb", buffering=0) as fin:
+    print("watching pid {}".format(pid))
+    with Memory.from_pid(pid) as mem:
         oldstate = None
         while True:
-            fin.seek(beg)
-            newstate = fin.read(end - beg)
+            newstate = mem.read(beg, end)
             if oldstate != newstate:
                 print("^-- change detected --")
                 write_hex(sys.stdout.buffer, newstate, beg)
