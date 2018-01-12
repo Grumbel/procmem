@@ -6,11 +6,13 @@ to a processes memory, as well as printing information related to a
 processes allocated memory. This is accomplished via the
 `/proc/$PID/smaps` and `/proc/$PID/mem` files.
 
+
 Installation
 ------------
 
     sudo -H pip3 install -r requirements.txt
     sudo -H pip3 install -e .
+
 
 Examples
 --------
@@ -62,6 +64,20 @@ Examples
       4.07MiB  shared size
      20.00KiB  text
     616.00KiB  data + stack
+
+
+mmaptracker.gdb
+---------------
+
+The GDB script `mmaptracker.gdb` tracks all mmap() calls and prints
+the backtrace at those points, this allows to figure out where a given
+anonymous memory region came from. The gdb output is captured in the
+file `/tmp/mmaptracker.log`.
+
+Run with:
+
+    gdb -x mmaptracker.gdb --args /usr/bin/you_application
+
 
 Notes
 -----
