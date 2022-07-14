@@ -19,7 +19,7 @@ import sys
 import logging
 from contextlib import ExitStack
 
-import PIL
+import PIL.Image
 import bytefmt
 
 from procmem.memory import Memory
