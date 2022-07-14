@@ -15,6 +15,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
+from typing import Optional
+
+import argparse
 import sys
 import logging
 from contextlib import ExitStack
@@ -27,16 +30,18 @@ from procmem.memory_region import filter_memory_maps
 from procmem.hexdump import write_hex
 
 
-def make_outfile(template, addr):
+def make_outfile(template: str, addr: int) -> str:
     return "{}-{:016x}".format(template, addr)
 
 
-def main_read(pid, args):
+def main_read(pid: int, args: argparse.Namespace) -> None:
     total_length = 0
 
+    chunk: Optional[bytes] = None
     if args.range is not None:
         with Memory.from_pid(pid) as mem:
             chunk = mem.read(args.range.start, args.range.end)
+            assert chunk is not None
 
             if args.outfile is not None:
                 with open(args.outfile, 'wb') as fout:
@@ -69,28 +74,31 @@ def main_read(pid, args):
                         print(info)
 
                     try:
+                        chunk = None
                         chunk = mem.read(info.addr_beg, info.addr_end)
                     except OverflowError:
                         logging.exception("overflow error: %s", info)
                     except OSError:
                         logging.exception("OS error: %s", info)
 
-                    total_length += len(chunk)
-                    if fout is not None:
-                        if args.sparse:
-                            fout.seek(info.addr_beg)
-                        fout.write(chunk)
+                    if chunk is not None:
+                        total_length += len(chunk)
+                        if fout is not None:
+                            if args.sparse:
+                                fout.seek(info.addr_beg)
+                            assert chunk is not None
+                            fout.write(chunk)
 
-                    if fout is None and args.png is None:
-                        write_hex(sys.stdout, chunk, info.addr_beg, args.width)
+                        if fout is None and args.png is None:
+                            write_hex(sys.stdout, chunk, info.addr_beg, args.width)
 
-                    if args.png is not None:
-                        png_outfile = make_outfile(args.png, info.addr_beg) + ".png"
-                        png_height = (len(chunk) + 1024) // 1024
-                        padding = (1024 - len(chunk) % 1024) * b"\00"
-                        img = PIL.Image.frombytes(mode="L", size=(1024, png_height), data=chunk + padding)
-                        logging.info("writing %s", png_outfile)
-                        img.save(png_outfile)
+                        if args.png is not None:
+                            png_outfile = make_outfile(args.png, info.addr_beg) + ".png"
+                            png_height = (len(chunk) + 1024) // 1024
+                            padding = (1024 - len(chunk) % 1024) * b"\00"
+                            img = PIL.Image.frombytes(mode="L", size=(1024, png_height), data=chunk + padding)
+                            logging.info("writing %s", png_outfile)
+                            img.save(png_outfile)
 
     print("dumped {}".format(bytefmt.humanize(total_length, style="binary")))
 

@@ -15,6 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
+import argparse
 import os
 import sys
 
@@ -55,7 +56,7 @@ vmflags_to_doc = {
 }
 
 
-def main_info(pid, args):
+def main_info(pid: int, args: argparse.Namespace) -> None:
     if args.raw:
         filename = os.path.join("/proc", str(pid), "smaps")
         with open(filename, "r") as fin:
@@ -72,7 +73,7 @@ def main_info(pid, args):
                     print("    {:18}: {:>10}".format(k, bytefmt.humanize(v, style="binary")))
 
                 if False:
-                    print("    {:18}: {}".format("VmFlags", " ".join(info.vmflags)))
+                    print("    {:18}: {}".format("VmFlags", " ".join(info.vmflags)))  # type: ignore[unreachable]
                 else:
                     print("    {}:".format("VmFlags"))
                     for flag in info.vmflags:

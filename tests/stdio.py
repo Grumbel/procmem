@@ -15,13 +15,15 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
+from typing import TextIO, Optional, Iterator
+
 import io
 import sys
 from contextlib import contextmanager
 
 
 @contextmanager
-def redirect(stdin=None):
+def redirect(stdin: Optional[TextIO] = None) -> Iterator[tuple[TextIO, TextIO]]:
     """Temporarily redirect stdout, stderr and optionally stdin into
     StringIO() objects, thus allowing the testing of functions that
     make use of them without cluttering up the output.

@@ -25,7 +25,7 @@ import stdio
 
 class MainListTestCase(unittest.TestCase):
 
-    def test_main_list(self):
+    def test_main_list(self) -> None:
         with stdio.redirect() as (stdout, stderr):
             main_list(os.getpid(), argparse.Namespace())
 

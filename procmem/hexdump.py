@@ -15,6 +15,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
+from typing import IO
+
 import string
 
 from procmem.itertools import chunk_iter
@@ -23,7 +25,7 @@ from procmem.itertools import chunk_iter
 PRINTABLE_CHARS = set([ord(c) for c in string.digits + string.ascii_letters + string.punctuation])
 
 
-def write_hex(fout, buf, offset, width=16):
+def write_hex(fout: IO[str], buf: bytes, offset: int, width: int = 16) -> None:
     """Write the content of 'buf' out in a hexdump style
 
     Args:

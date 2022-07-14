@@ -15,14 +15,17 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
+import argparse
+
 from procmem.memory import Memory
 from procmem.pack import text2bytes
 
 
-def main_write(pid, args):
+def main_write(pid: int, args: argparse.Namespace) -> None:
     address = int(args.address, 16)
 
     data = text2bytes(args.DATA, args.type)
+    assert data is not None
 
     with Memory.from_pid(pid, mode='wb') as mem:
         mem.write(address, data)

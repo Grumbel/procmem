@@ -15,13 +15,15 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
+import argparse
+
 from procmem.memory import Memory
 from procmem.memory_region import filter_memory_maps
 from procmem.pack import text2bytes
 from procmem.main_search import search
 
 
-def main_replace(pid, args):
+def main_replace(pid: int, args: argparse.Namespace) -> None:
     needle = text2bytes(args.NEEDLE, args.type)
     data = text2bytes(args.DATA, args.type)
 
@@ -31,9 +33,11 @@ def main_replace(pid, args):
 
         for info in infos:
             haystack = mem.read(info.addr_beg, info.addr_end)
+            assert haystack is not None
             addrs = search(needle, haystack)
 
             for addr in addrs:
+                assert data is not None
                 mem.write(info.addr_beg + addr, data)
                 print("replaced data at {:016x}".format(info.addr_beg + addr))
 

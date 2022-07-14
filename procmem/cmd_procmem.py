@@ -33,7 +33,7 @@ from procmem.main_watch import main_watch
 from procmem.main_write import main_write
 
 
-def AddressRangeOpt(text):
+def AddressRangeOpt(text: str) -> range:
     g = re.match(r"^([0-9a-fA-F]+)$", text)
     if g is not None:
         s = int(g.group(1), 16)
@@ -57,7 +57,7 @@ def AddressRangeOpt(text):
         return range(lhs_value, rhs_value)
 
 
-def parse_args(argv):
+def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="A process memory inspection tool")
     subparsers = parser.add_subparsers()
 
@@ -157,11 +157,11 @@ def parse_args(argv):
     return args
 
 
-def pid_by_name(name):
+def pid_by_name(name: str) -> list[int]:
     return [p.pid for p in psutil.process_iter() if p.name() == name]
 
 
-def pid_from_args(args):
+def pid_from_args(args: argparse.Namespace) -> int:
     if args.pid is not None:
         if args.pid == "self":
             return os.getpid()
@@ -179,7 +179,7 @@ def pid_from_args(args):
         return os.getpid()
 
 
-def main(argv):
+def main(argv: list[str]) -> None:
     logging.basicConfig(level=logging.DEBUG)
     args = parse_args(argv[1:])
     pid = pid_from_args(args)
@@ -194,7 +194,7 @@ def main(argv):
         args.command(pid, args)
 
 
-def main_entrypoint():
+def main_entrypoint() -> None:
     main(sys.argv)
 
 

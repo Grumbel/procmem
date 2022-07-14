@@ -25,7 +25,7 @@ import stdio
 
 class MainInfoTestCase(unittest.TestCase):
 
-    def test_main_info(self):
+    def test_main_info(self) -> None:
         with stdio.redirect() as (stdout, stderr):
             args = argparse.Namespace(
                 raw=False,

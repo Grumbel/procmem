@@ -15,8 +15,15 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-def chunk_iter(lst, size):
-    return (lst[p:p + size] for p in range(0, len(lst), size))
+from typing import Iterator, Sequence, TypeVar
+
+
+T = TypeVar('T')
+
+
+def chunk_iter(lst: Sequence[T], size: int) -> Iterator[Sequence[T]]:
+    return (lst[p:p + size]
+            for p in range(0, len(lst), size))
 
 
 # EOF #

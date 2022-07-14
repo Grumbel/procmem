@@ -21,7 +21,7 @@ from procmem.pack import text2bytes
 
 class PackTestCase(unittest.TestCase):
 
-    def test_text2bytes(self):
+    def test_text2bytes(self) -> None:
         self.assertEqual(text2bytes("de ad", "bytes"), b'\xde\xad')
         self.assertEqual(text2bytes("StringTest", "string"), b'StringTest')
         self.assertEqual(text2bytes("StringTest", "string0"), b'StringTest\x00')

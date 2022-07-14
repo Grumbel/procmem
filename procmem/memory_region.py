@@ -15,6 +15,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
+from typing import IO, Optional
+
+import argparse
 import logging
 import os
 import re
@@ -25,7 +28,7 @@ import bytefmt
 from procmem.itertools import chunk_iter
 
 
-def filter_memory_maps(args, infos):
+def filter_memory_maps(args: argparse.Namespace, infos: list['MemoryRegion']) -> list['MemoryRegion']:
     if not args.no_default_filter:
         # Reading [vvar] fails to read with OSError: "[Errno 5]
         # Input/output error", so we filter it out to prevent issues
@@ -49,6 +52,7 @@ def filter_memory_maps(args, infos):
 
 
 class MemoryRegion:
+
     # address, perms, offset, dev, inode, pathname
     maps_re = re.compile(
         r'([0-9a-f]+)-([0-9a-f]+) ([r-])([w-])([x-])([ps]) ([0-9a-f]+) ([0-9a-f]+:[0-9a-f]+) (\d+) *(.*)\n',
@@ -69,14 +73,14 @@ class MemoryRegion:
     FRAME_MASK = 0x3fffffffffffff
 
     @staticmethod
-    def regions_from_pid(pid):
+    def regions_from_pid(pid: int) -> list['MemoryRegion']:
         maps_path = os.path.join("/proc/", str(pid), "smaps")
         # pagemap_path = os.path.join("/proc/{}/pagemap".format(pid))
         return MemoryRegion.regions_from_file(maps_path)
 
     @staticmethod
-    def regions_from_file(maps_path):
-        infos = []
+    def regions_from_file(maps_path: str) -> list['MemoryRegion']:
+        infos: list['MemoryRegion'] = []
         # with open(pagemap_path, 'rb', buffering=0) as pagemap_io,
         with open(maps_path, 'r') as fin:
             while True:
@@ -89,16 +93,16 @@ class MemoryRegion:
 
         return infos
 
-    def _process_pagemap(self, io):
+    def _process_pagemap(self, io: IO[str]) -> None:
         assert False, "work in progress"
 
         # io.seek(self.addr_beg // 8)
-        l = (self.addr_end - self.addr_beg) // 4096 * 8
+        length = (self.addr_end - self.addr_beg) // 4096 * 8  # type: ignore[unreachable]
         io.seek(self.addr_beg // 4096 * 8)
-        print("PAGEMAP {} {}".format(l, self))
-        buf = io.read(l)
+        print("PAGEMAP {} {}".format(length, self))
+        buf = io.read(length)
         for b in chunk_iter(buf, 8):
-            v = struct.unpack("Q".format(len(buf) // 8)[0], b)[0]
+            v = struct.unpack("Q{}".format(len(buf) // 8)[0], b)[0]
             print("    {} {} {} {}".format(
                 "RAM" if (v & MemoryRegion.PAGE_RAM) else " - ",
                 "SWP" if (v & MemoryRegion.PAGE_SWAP) else " - ",
@@ -107,7 +111,7 @@ class MemoryRegion:
             ))
 
     @staticmethod
-    def from_smaps_io(fin):
+    def from_smaps_io(fin: IO[str]) -> Optional['MemoryRegion']:
         line = fin.readline()
         if line == '':
             return None
@@ -121,36 +125,37 @@ class MemoryRegion:
                 pass
             elif line.startswith("VmFlags:"):
                 break
-            region._add_info_from_string(line)
+            else:
+                region._add_info_from_string(line)
         region._add_vmflags_from_string(line)
 
         return region
 
-    def _add_info_from_string(self, text):
+    def _add_info_from_string(self, text: str) -> None:
         """Parse additional info from /proc/$PID/smaps"""
         match = MemoryRegion.info_re.match(text)
         if match is None:
-            logging.warning(f"failed to parse: '{text}', ignoring")
+            logging.warning(f"failed to parse: {text!r}, ignoring")
             return
 
         name = match.group(1)
         kb_count = int(match.group(2))
         self.info[name] = kb_count * 1024
 
-    def _add_vmflags_from_string(self, text):
+    def _add_vmflags_from_string(self, text: str) -> None:
         assert text.startswith("VmFlags:")
         self.vmflags = text[8:].split()
 
     @staticmethod
-    def from_string(text):
+    def from_string(text: str) -> 'MemoryRegion':
         match = MemoryRegion.maps_re.match(text)
         if not match:
             raise Exception("parse error on line:\n{}".format(text))
-        else:
-            return MemoryRegion._from_match(match)
+
+        return MemoryRegion._from_match(match)
 
     @staticmethod
-    def _from_match(match):
+    def _from_match(match: re.Match[str]) -> 'MemoryRegion':
         """Create a MemoryRegion object from a string in the format found in /proc/$PID/maps"""
         addr_beg, addr_end, r, w, x, p, offset, dev, inode, pathname = match.groups()
         return MemoryRegion(addr_beg=int(addr_beg, 16),
@@ -164,7 +169,9 @@ class MemoryRegion:
                             inode=int(inode),
                             pathname=pathname)
 
-    def __init__(self, addr_beg, addr_end, readable, writable, executable, private, offset, dev, inode, pathname):
+    def __init__(self, addr_beg: int, addr_end: int,
+                 readable: bool, writable: bool, executable: bool, private: bool,
+                 offset: int, dev: str, inode: int, pathname: str) -> None:
         self.addr_beg = addr_beg
         self.addr_end = addr_end
         self.readable = readable
@@ -176,20 +183,20 @@ class MemoryRegion:
         self.inode = inode
         self.pathname = pathname
 
-        self.info = {}
+        self.info: dict[str, int] = {}
         self.vmflags = []
 
-    def length(self):
+    def length(self) -> int:
         return self.addr_end - self.addr_beg
 
-    def perms(self):
+    def perms(self) -> str:
         return "{}{}{}{}".format(
             "r" if self.readable else "-",
             "w" if self.writable else "-",
             "x" if self.executable else "-",
             "p" if self.private else "s")
 
-    def __str__(self):
+    def __str__(self) -> str:
         return "{:012x}-{:012x}  {:>10}  {}  {}".format(
             self.addr_beg, self.addr_end,
             bytefmt.humanize(self.length(), style="binary"),

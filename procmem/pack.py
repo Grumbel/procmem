@@ -15,6 +15,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
+from typing import Optional
+
 import struct
 
 
@@ -38,14 +40,14 @@ FLOAT_DEFS = [
 ]
 
 
-def find_def(ctype, defs):
+def find_def(ctype: str, defs: list[tuple[str, list[str]]]) -> Optional[str]:
     for d, arr in defs:
         if ctype in arr:
             return d
     return None
 
 
-def text2bytes(text, ctype):
+def text2bytes(text: str, ctype: str) -> bytes:
     if ctype == "bytes" or ctype == "b":
         return bytes.fromhex(text)
 
@@ -68,7 +70,7 @@ def text2bytes(text, ctype):
     if float_type is not None:
         return struct.pack(endian + float_type[0], float(text))
 
-    return None
+    raise RuntimeError(f"invalid ctype spec: '{ctype}'")
 
 
 # EOF #

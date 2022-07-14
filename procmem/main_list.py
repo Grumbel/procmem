@@ -15,10 +15,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
+import argparse
 import psutil
 
 
-def main_list(pid, args):
+def main_list(pid: int, args: argparse.Namespace) -> None:
     for p in psutil.process_iter():
         print("{:5d}  {}".format(p.pid, p.name()))
 

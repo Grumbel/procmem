@@ -15,11 +15,13 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
+import argparse
 import os
+
 import bytefmt
 
 
-def main_statm(pid, args):
+def main_statm(pid: int, args: argparse.Namespace) -> None:
     filename = os.path.join("/proc", str(pid), "statm")
     with open(filename, "r") as fin:
         content = fin.read()

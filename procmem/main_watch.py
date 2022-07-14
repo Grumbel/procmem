@@ -15,6 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
+import argparse
 import time
 import sys
 
@@ -22,7 +23,7 @@ from procmem.memory import Memory
 from procmem.hexdump import write_hex
 
 
-def main_watch(pid, args):
+def main_watch(pid: int, args: argparse.Namespace) -> None:
     beg = args.range.start
     end = args.range.stop
 
@@ -31,9 +32,10 @@ def main_watch(pid, args):
         oldstate = None
         while True:
             newstate = mem.read(beg, end)
+            assert newstate is not None
             if oldstate != newstate:
                 print("^-- change detected --")
-                write_hex(sys.stdout.buffer, newstate, beg)
+                write_hex(sys.stdout, newstate, beg)
                 sys.stdout.buffer.flush()
                 oldstate = newstate
             time.sleep(0.1)

@@ -15,6 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
+import argparse
 import sys
 
 from procmem.memory_region import filter_memory_maps
@@ -23,8 +24,8 @@ from procmem.pack import text2bytes
 from procmem.hexdump import write_hex
 
 
-def search(needle, haystack):
-    results = []
+def search(needle: bytes, haystack: bytes) -> list[int]:
+    results: list[int] = []
 
     cur = 0
     while True:
@@ -38,8 +39,11 @@ def search(needle, haystack):
     return results
 
 
-def main_search(pid, args):
+def main_search(pid: int, args: argparse.Namespace) -> None:
     needle = text2bytes(args.NEEDLE, args.type)
+
+    after_context: bool = False
+    before_context: bool = False
 
     if args.context == 0:
         show_context = False
@@ -54,12 +58,14 @@ def main_search(pid, args):
 
         for info in infos:
             haystack = mem.read(info.addr_beg, info.addr_end)
+            assert haystack is not None
             addrs = search(needle, haystack)
             for addr in addrs:
                 print("found pattern at {:016x}".format(info.addr_beg + addr))
                 if show_context:
                     s = max(0, addr - before_context)
                     e = min(len(haystack), addr + len(needle) + after_context)
+                    assert haystack is not None
                     context = haystack[s:e]
                     write_hex(sys.stdout, context, info.addr_beg + s, args.width)
                     print()
