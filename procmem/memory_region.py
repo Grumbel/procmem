@@ -15,6 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
+import logging
 import os
 import re
 import struct
@@ -116,7 +117,9 @@ class MemoryRegion:
         while True:
             line = fin.readline()
             assert line != ''
-            if line.startswith("VmFlags:"):
+            if line.startswith("THPeligible:"):
+                pass
+            elif line.startswith("VmFlags:"):
                 break
             region._add_info_from_string(line)
         region._add_vmflags_from_string(line)
@@ -126,7 +129,9 @@ class MemoryRegion:
     def _add_info_from_string(self, text):
         """Parse additional info from /proc/$PID/smaps"""
         match = MemoryRegion.info_re.match(text)
-        assert match is not None
+        if match is None:
+            logging.warning(f"failed to parse: '{text}', ignoring")
+            return
 
         name = match.group(1)
         kb_count = int(match.group(2))
