@@ -35,7 +35,7 @@ setup(
         ],
         'gui_scripts': []
     },
-    install_requires=['bytefmt'],
+    install_requires=['bytefmt', 'psutil'],
     packages=['procmem']
 )
 
