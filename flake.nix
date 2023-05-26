@@ -1,10 +1,9 @@
 {
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-22.05";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.05";
     flake-utils.url = "github:numtide/flake-utils";
 
     bytefmt.url = "github:grumbel/python-bytefmt";
-    bytefmt.inputs.nix.follows = "nix";
     bytefmt.inputs.nixpkgs.follows = "nixpkgs";
     bytefmt.inputs.flake-utils.follows = "flake-utils";
   };
@@ -15,11 +14,15 @@
         pkgs = nixpkgs.legacyPackages.${system};
         pythonPackages = pkgs.python310Packages;
       in rec {
-        packages = flake-utils.lib.flattenTree rec {
+        packages = rec {
+          default = procmem;
+
           procmem = pythonPackages.buildPythonPackage rec {
             pname = "procmem";
             version = "0.1.0";
+
             src = ./.;
+
             checkPhase = ''
               runHook preCheck
               flake8 procmem tests
@@ -29,13 +32,8 @@
               python3 -m unittest discover -v -s tests/
               runHook postCheck
             '';
-            propagatedBuildInputs = [
-              pythonPackages.setuptools
-              pythonPackages.psutil
-              pythonPackages.pillow
-              (bytefmt.lib.bytefmtWithPythonPackages pythonPackages)
-            ];
-            checkInputs = (with pkgs; [
+
+            nativeCheckInputs = (with pkgs; [
               pyright
             ]) ++ (with pythonPackages; [
               flake8
@@ -43,17 +41,14 @@
               pylint
               types-setuptools
             ]);
+
+            propagatedBuildInputs = [
+              pythonPackages.setuptools
+              pythonPackages.psutil
+              pythonPackages.pillow
+              (bytefmt.lib.bytefmtWithPythonPackages pythonPackages)
+            ];
           };
-          default = procmem;
-        };
-        devShells = rec {
-          dirtoo = pkgs.mkShell {
-            inputsFrom = [ packages.procmem ];
-            shellHook = ''
-              # runHook setuptoolsShellHook
-            '';
-          };
-          default = dirtoo;
         };
       }
     );
