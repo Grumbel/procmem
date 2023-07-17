@@ -40,7 +40,7 @@ def main_read(pid: int, args: argparse.Namespace) -> None:
     chunk: Optional[bytes] = None
     if args.range is not None:
         with Memory.from_pid(pid) as mem:
-            chunk = mem.read(args.range.start, args.range.end)
+            chunk = mem.read(args.range.start, args.range.stop)
             assert chunk is not None
 
             if args.outfile is not None:
